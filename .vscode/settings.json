@@ -1,0 +1,12 @@
+{
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingModuleSource": "none"
+  },
+  "python.analysis.typeshedPaths": [
+    ".venv/Lib/site-packages",
+    "typings"
+  ],
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.stubPath": "typings",
+}
