@@ -1,10 +1,10 @@
 from prelude import *
 from collector import Collector
 import HAL
-import cotask
-import task_share
 import motor_control_task
 import collector_task
+from support import task_share
+from support import cotask
 
 
 def main():
