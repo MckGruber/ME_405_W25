@@ -1,4 +1,4 @@
-from pyb import Pin, ADC, Timer
+from pyb import Pin, ADC, Timer, UART
 
 MAX_FREQ = 0xffff
 
@@ -73,54 +73,70 @@ class __ENCODER__:
 # #------------------------------
 
 # #---------Line Sensor----------
-# _PA0 = Pin(Pin.cpu.A0) #ADC_IN
-# _ADC_A0 = ADC(_PA0)
-# _PA1 = Pin(Pin.cpu.A1) #ADC_IN
-# _ADC_A1 = ADC(_PA1)
-# _PA4 = Pin(Pin.cpu.A4) #ADC_IN
-# _ADC_A4 = ADC(_PA4)
-# _PA6 = Pin(Pin.cpu.A6) #ADC_IN
-# _ADC_A6 = ADC(_PA6)
-# _PA7 = Pin(Pin.cpu.A7) #ADC_IN
-# _ADC_A7 = ADC(_PA7)
-# _PB0 = Pin(Pin.cpu.B0) #ADC_IN
-# _ADC_B0 = ADC(_PB0)
-# _PB1 = Pin(Pin.cpu.B1) #ADC_IN
-# _ADC_B1 = ADC(_PB1)
-# _PC0 = Pin(Pin.cpu.C0) #ADC_IN
-# _ADC_C0 = ADC(_PC0)
-# _PC1 = Pin(Pin.cpu.C1) #ADC_IN
-# _ADC_C1 = ADC(_PC1)
-# _PC2 = Pin(Pin.cpu.C2) #ADC_IN
-# _ADC_C2 = ADC(_PC2)
-# _PC3 = Pin(Pin.cpu.C3) #ADC_IN
-# _ADC_C3 = ADC(_PC3)
-# _PC4 = Pin(Pin.cpu.C4) #ADC_IN
-# _ADC_C4 = ADC(_PC4)
-# _PC5 = Pin(Pin.cpu.C5) #ADC_IN
-# _ADC_C5 = ADC(_PC5)
-# _PA10 = Pin(Pin.cpu.A10, mode=Pin.OUT_PP, pull=Pin.PULL_DOWN, value=0) #EVENTOUT
-# _PC9 = Pin(Pin.cpu.C9, mode=Pin.OUT_PP, pull=Pin.PULL_DOWN, value=0) #EVENTOUT
+_PA0 = Pin(Pin.cpu.A0) #ADC_IN
+_ADC_A0 = ADC(_PA0)
 
-# class __LINE_SENSOR_CHANNELS__:
-#   ONE = "Incomplete"
-#   TWO = "Incomplete"
-#   THREE = "Incomplete"
-#   FOUR = "Incomplete"
-#   FIVE = "Incomplete"
-#   SIX = "Incomplete"
-#   SEVEN = "Incomplete"
-#   EIGHT = "Incomplete"
-#   NINE = "Incomplete"
-#   TEN = "Incomplete"
-#   ELEVEN = "Incomplete"
-#   TWELVE = "Incomplete"
-#   THIRTEEN = "Incomplete"
+_PA1 = Pin(Pin.cpu.A1) #ADC_IN
+_ADC_A1 = ADC(_PA1)
 
-# class __LINE_SENSOR__:
-#   ENABLE_EVEN = _PA10
-#   ENABLE_ODD = _PC9
-#   CHANNELS = __LINE_SENSOR_CHANNELS__
+_PA4 = Pin(Pin.cpu.A4) #ADC_IN
+_ADC_A4 = ADC(_PA4)
+
+_PA6 = Pin(Pin.cpu.A6) #ADC_IN
+_ADC_A6 = ADC(_PA6)
+
+_PA7 = Pin(Pin.cpu.A7) #ADC_IN
+_ADC_A7 = ADC(_PA7)
+
+_PB0 = Pin(Pin.cpu.B0) #ADC_IN
+_ADC_B0 = ADC(_PB0)
+
+_PB1 = Pin(Pin.cpu.B1) #ADC_IN
+_ADC_B1 = ADC(_PB1)
+
+_PC0 = Pin(Pin.cpu.C0) #ADC_IN
+_ADC_C0 = ADC(_PC0)
+
+_PC1 = Pin(Pin.cpu.C1) #ADC_IN
+_ADC_C1 = ADC(_PC1)
+
+_PC2 = Pin(Pin.cpu.C2) #ADC_IN
+_ADC_C2 = ADC(_PC2)
+
+_PC3 = Pin(Pin.cpu.C3) #ADC_IN
+_ADC_C3 = ADC(_PC3)
+
+_PC4 = Pin(Pin.cpu.C4) #ADC_IN
+_ADC_C4 = ADC(_PC4)
+
+_PC5 = Pin(Pin.cpu.C5) #ADC_IN
+_ADC_C5 = ADC(_PC5)
+
+# #-------Enable Pins---------
+_PA10 = Pin(Pin.cpu.A10, mode=Pin.OUT_PP, pull=Pin.PULL_DOWN, value=0) #EVENTOUT
+_PC9 = Pin(Pin.cpu.C9, mode=Pin.OUT_PP, pull=Pin.PULL_DOWN, value=0) #EVENTOUT
+_PA10.high()
+_PC9.high()
+
+
+class __LINE_SENSOR__:
+  ENABLE_EVEN = _PA10
+  ENABLE_ODD = _PC9
+  CHANNELS = [
+    _ADC_B1,
+    _ADC_C5,
+    _ADC_A7,
+    _ADC_C4,
+    _ADC_C2,
+    _ADC_A6,
+    _ADC_C3,
+    _ADC_B0,
+    _ADC_C0,
+    _ADC_A4,
+    _ADC_C1,
+    _ADC_A1,
+    _ADC_A0
+  ]
 
 
 # #--------------------------------
@@ -168,29 +184,37 @@ class __ENCODER__:
 
 # #-----------------------------------
 
-# #-------------Bluetooth-------------
+#-------------Bluetooth-------------
 
-# _PB6 = Pin(Pin.cpu.B6) #USART1_TX
-# _PB7 = Pin(Pin.cpu.B7) #USART1_RX
-# _PB10 = Pin(Pin.cpu.B10) #EVENTOUT
-# _PB10.init(Pin.OUT_PP, value=0)
-# _PB11 = Pin(Pin.cpu.B11) #DIGITAL_IN
-# _PB11.init(Pin.IN)
+# # _PB6 = Pin(Pin.cpu.B6, mode=Pin.ALT, alt=7) # USART1_TX
+# # _PB7 = Pin(Pin.cpu.B7, mode=Pin.ALT, alt=7) # USART1_RX
+# _PB10 = Pin(Pin.cpu.B10, mode=Pin.OUT_PP, value=0) # EVENOUT, ENABLE pin (set low initially) 
+_PB11 = Pin(Pin.cpu.B11, mode=Pin.IN) # DIGITAL_IN, STATE pin
 
-# class __BLUE_TOOTH__:
+class __BLUE_TOOTH__:
 #   TX = _PB6
 #   RX = _PB7
 #   UART_CHANNEL = 1
+    UART = UART(1, 115200, timeout = 100)
 #   ENABLE = _PB10
-#   STATE = _PB11
+    STATE = _PB11
 
-# #-----------------------------------
+#-----------------------------------
 
+#-------------USER Button (B1)-------------
 
+_PC13 = Pin(Pin.cpu.C13, mode=Pin.IN, pull=Pin.PULL_UP)  # Configure PC13 as an input with a pull-up resistor
+
+class __USER_BUTTON__:
+    PIN = _PC13  # Assign the pin to the class
+    def is_pressed(self):
+        return not _PC13.value()  # Active low: returns True when pressed, False otherwise
+
+#------------------------------------------
 
 class HAL:
   ENCODER = __ENCODER__
-#   LINE_SENSOR = __LINE_SENSOR__
+  LINE_SENSOR = __LINE_SENSOR__
   MOTOR = __MOTOR__
 #   BUMP_SENSOR = __BUMP_SENSOR__
 #   IMU = __IMU__

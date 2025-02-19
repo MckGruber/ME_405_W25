@@ -3,42 +3,57 @@ from collector import Collector
 import HAL
 import motor_control_task
 import collector_task
-from support import task_share
-from support import cotask
-
+import userbutton
+from linesensor import LineSensor
+import task_share
+import cotask
+# import BT_configurator
 
 def main():
-  try:
-    # Create task objects with desired priority and period
-    motor_task = cotask.Task(motor_control_task.motor_control_task, name="MotorControl", priority=2, period=50, profile=True)
-    coll_task = cotask.Task(collector_task.collector_task, name="Collector", priority=1, period=10, profile=True)
+    try:
+        # Create shared variable for centroid data
+        centroid_share = task_share.Share('f', True, "Centroid")
 
-    # Add tasks to the task list
-    cotask.task_list.append(motor_task)
-    cotask.task_list.append(coll_task)
+        # Get shared control flag from userbutton.py
+        control_flag = userbutton.get_control_flag_share()
 
-    # file_names = Collector.run()
-    # HAL.__MOTOR_LEFT__.ENABLE.low()
-    # HAL.__MOTOR_RIGHT__.ENABLE.low()
-    # for file_name in file_names:
-    #   with open(file_name, "r") as f:
-    #     print(f'{file_name}: \n\r{f.read()}')
-  
-    # Run the scheduler in an infinite loop
-    while True:
-        cotask.task_list.pri_sched()
+        # Create tasks with shared control_flag
+        motor_task = cotask.Task(motor_control_task.MotorControl.task, name="MotorControl",
+                                 priority=2, period=10, profile=True, trace=True,
+                                 shares=(centroid_share, control_flag))
+        # coll_task = cotask.Task(collector_task.collector_task, name="Collector",
+        #                         priority=1000, period=10, profile=True)
+        line_task = cotask.Task(LineSensor.task, name="LineSensor",
+                                priority=1, period=10, profile=True, trace=True,
+                                shares=(centroid_share))
 
-  except BaseException as e:
-    HAL.__MOTOR_LEFT__.ENABLE.low()
-    HAL.__MOTOR_RIGHT__.ENABLE.low()
-    with open('log.txt', 'a+') as log:
-      try:
-        print(e)
-        print(e, file=log)
-      except:
-        print(e, file=log)
-  return
+        # Add tasks to the task list
+        cotask.task_list.append(motor_task)
+        # cotask.task_list.append(coll_task)
+        cotask.task_list.append(line_task)
 
+        # Enable the motors by running the scheduler
+        while True:
+            cotask.task_list.pri_sched()
+
+    except KeyboardInterrupt:
+        print("\nTerminating Program")
+        HAL.__MOTOR_LEFT__.ENABLE.low()
+        HAL.__MOTOR_RIGHT__.ENABLE.low()
+        return
+
+    except BaseException as e:
+        HAL.__MOTOR_LEFT__.ENABLE.low()
+        HAL.__MOTOR_RIGHT__.ENABLE.low()
+        with open('log.txt', 'a+') as log:
+            try:
+                print(e)
+                print(e, file=log)
+            except:
+                print(e, file=log)
+
+    return
+    pass
 
 if __name__ == "__main__":
-  main()
+    main()

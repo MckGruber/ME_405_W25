@@ -12,7 +12,7 @@ class Motor:
   def set_dir(self, dir: int):
     self.__hal__.DIRECTION.value(dir)
 
-  def effort(self, value: int | None) -> int | None:
+  def effort(self, value: int | None = None) -> int:
     if value == None:
       self.__hal__.PWM.pulse_width_percent()
       return self.__hal__.PWM.pulse_width_percent()
@@ -20,8 +20,20 @@ class Motor:
       effort = clamp(abs(value), -100, 100)
       self.set_dir(MotorDirection.FWD if value > 0 else MotorDirection.REV)
       self.__hal__.PWM.pulse_width_percent(effort)
-    return
+      return effort
 
+  def set_speed(self, speed: int) -> None:
+    # Ensure speed is within valid range
+    speed = clamp(speed, -100, 100)  # Ensure speed stays within valid range
+
+    if speed == 0:
+        self.__hal__.PWM.pulse_width_percent(0)  # Stop the motor
+    else:
+        direction = MotorDirection.FWD if speed > 0 else MotorDirection.REV
+        self.set_dir(direction)  # Set correct motor direction
+        self.__hal__.PWM.pulse_width_percent(abs(speed))  # Apply speed as PWM duty cycle
+
+  
   def enable(self):
     if self.is_on:
       return
