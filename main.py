@@ -51,9 +51,15 @@ def main():
                 print(e, file=log)
             except:
                 print(e, file=log)
-
     return
-    pass
+
+def line_sensor_test():
+    while True:
+        print([channel.read() for channel in HAL.__LINE_SENSOR__.CHANNELS])
 
 if __name__ == "__main__":
+    print("waiting")
+    while HAL._PC13.value():
+        continue
+    print("Starting")
     main()

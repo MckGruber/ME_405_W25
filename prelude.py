@@ -9,7 +9,8 @@ class MotorDirection:
 def clamp(value, min_value, max_value):
   return max(min_value, min(value, max_value))
 
-Om_set = 0
+OM_SET = 0
+V_LIN_SET = 5
 
 
 
