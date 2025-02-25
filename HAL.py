@@ -1,4 +1,4 @@
-from pyb import Pin, ADC, Timer, UART
+from pyb import Pin, ADC, Timer, UART, I2C
 
 MAX_FREQ = 0xffff
 
@@ -146,7 +146,7 @@ class __LINE_SENSOR__:
 
 # #-------------Bump Sensor----------
 
-# _PB3 = Pin(Pin.cpu.B3, mode = Pin.IN) #DIGITAL_IN
+# _PC8 = Pin(Pin.cpu.C8, mode = Pin.IN) #DIGITAL_IN
 # _PB4 = Pin(Pin.cpu.B4, mode = Pin.IN) #DIGITAL_IN
 # _PB5 = Pin(Pin.cpu.B5, mode = Pin.IN) #DIGITAL_IN
 # _PB13 = Pin(Pin.cpu.B13, mode = Pin.IN) #DIGITAL_IN
@@ -154,7 +154,7 @@ class __LINE_SENSOR__:
 # _PB15 = Pin(Pin.cpu.B15, mode = Pin.IN) #DIGITAL_IN
 
 # class __BUMP_SENSOR_LEFT__:
-#   INSIDE = _PB3
+#   INSIDE = _PC8
 #   MIDDLE = _PB4
 #   OUTSIDE = _PB5
 
@@ -169,6 +169,32 @@ class __LINE_SENSOR__:
 
 # #-----------------------------------
 
+# #-------------Bump Sensor---------- (Joseph's Version)
+
+# _PC8  = Pin(Pin.cpu.C8, mode=Pin.IN, pull=Pin.PULL_UP)   # Left Inside
+# _PB4  = Pin(Pin.cpu.B4, mode=Pin.IN, pull=Pin.PULL_UP)   # Left Middle
+# _PB5  = Pin(Pin.cpu.B5, mode=Pin.IN, pull=Pin.PULL_UP)   # Left Outside
+# _PB13 = Pin(Pin.cpu.B13, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Outside
+# _PB14 = Pin(Pin.cpu.B14, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Middle
+# _PB15 = Pin(Pin.cpu.B15, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Inside
+
+# class __BUMP_SENSOR_LEFT__:
+#     INSIDE = _PC8
+#     MIDDLE = _PB4
+#     OUTSIDE = _PB5
+
+# class __BUMP_SENSOR_RIGHT__:
+#     INSIDE = _PB15
+#     MIDDLE = _PB14
+#     OUTSIDE = _PB13
+
+# class __BUMP_SENSOR__:
+#     LEFT = __BUMP_SENSOR_LEFT__
+#     RIGHT = __BUMP_SENSOR_RIGHT__
+
+# #-----------------------------------
+
+
 # #----------------IMU----------------
 
 # _PB2 = Pin(Pin.cpu.B2) #EVENTOUT
@@ -181,6 +207,21 @@ class __LINE_SENSOR__:
 #   SCL = _PB8
 #   SDA = _PB9
 #   I2C_CHANNEL = 1
+
+# # ----------------IMU (BNO055)---------------- (Joseph's Version)
+
+_PB2 = Pin(Pin.cpu.B2, mode=Pin.OUT_PP, value=1)                    # RESET pin (EVENTOUT)
+_PB8 = Pin(Pin.cpu.B8)       # I2C1_SCL (ALT function 4)
+_PB9 = Pin(Pin.cpu.B9)       # I2C1_SDA (ALT function 4)
+
+class __IMU__:
+    RESET = _PB2
+    SCL = _PB8
+    SDA = _PB9
+    I2C_CHANNEL = 1  # Define the I2C channel number
+
+    # Initialize I2C for IMU
+    I2C = I2C(I2C_CHANNEL, I2C.CONTROLLER)  # This can change, I put an arbitrary Fast-mode 400kHz
 
 # #-----------------------------------
 
@@ -218,5 +259,5 @@ class HAL:
   MOTOR = __MOTOR__
 #   BUMP_SENSOR = __BUMP_SENSOR__
 #   IMU = __IMU__
-#   BLUE_TOOTH = __BLUE_TOOTH__
+  BLUE_TOOTH = __BLUE_TOOTH__
 

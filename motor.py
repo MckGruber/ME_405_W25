@@ -7,9 +7,9 @@ class Motor:
     self.__hal__ = HAL.__MOTOR_LEFT__ if side == Vehicle_Side.LEFT else HAL.__MOTOR_RIGHT__
     self.direction = MotorDirection.FWD if self.__hal__.DIRECTION.value() == MotorDirection.FWD else MotorDirection.REV
     self.is_on = bool(self.__hal__.ENABLE.value())
-    pass
 
   def set_dir(self, dir: int):
+    self.direction = dir
     self.__hal__.DIRECTION.value(dir)
 
   def effort(self, value: int | float | None = None) -> int | float:

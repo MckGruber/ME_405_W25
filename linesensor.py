@@ -1,7 +1,5 @@
-import pyb
-import time
 import HAL
-import task_share, cotask
+import task_share
 from prelude import *
 
 class LineSensor:
@@ -14,11 +12,21 @@ class LineSensor:
         self.sensors = HAL.__LINE_SENSOR__.CHANNELS         # Ensure CHANNELS is a list of sensor objects
         self.calibration_min = [4095] * 13                  # Initial high values for calibration (min)
         self.calibration_max = [0] * 13                     # Initial low values for calibration (max)
-        self.state = self.S0_CALIBRATING                    # Start in the CALIBRATING state
+        self.state = self.S2_PROCESSING                    # Start in the CALIBRATING state
         self.calibration_samples = 100                      # Total number of calibration samples required
         self.calibration_data: list[tuple[float, float]] = []
         self.sample_count = 0                               # Counter for calibration samples taken
         self.centroid = None                                # Last computed centroid value
+
+
+        from os import listdir
+        filelist = listdir()
+        if "IR_cal.txt" not in filelist:
+            self.calibrate_step()
+        else:
+            if self.calibration_data == []:
+                with open("IR_cal.txt", "r") as f:
+                    self.calibration_data = list(filter(lambda item: item != '', map(lambda str_list: ((((str_list[0]+(-6))) / (float(str_list[1][0]) - float(str_list[1][1]))), float(str_list[1][1])), enumerate(filter(lambda item: item != '', map(lambda item_str: item_str.split("(")[1].split(","), filter(lambda item: item != '', f.readline().split("[")[1].split("]")[0].split(")"))))))))
 
     def calibrate_step(self):
         # Calibration step to update min/max values for each sensor
@@ -61,7 +69,7 @@ class LineSensor:
 
     def calculate_centroid(self) -> float:
         # Read normalized sensor values from each sensor
-        normalized: list[float] = []
+        # normalized: float = 0.0
         # for i, value in enumerate(raw_values):
         #     min_val = self.calibration_min[i]
         #     max_val = self.calibration_max[i]
@@ -70,58 +78,33 @@ class LineSensor:
         #         normalized.append(min(max(normalized_value, 0), 1000))
         #     else:
         #         normalized.append(0)
-        weight = -6
-        for i, sensor in enumerate(self.sensors):
-            value = sensor.read()
-            min_val = self.calibration_data[i][1]
-            max_val = self.calibration_data[i][0]
-            val = clamp(value, min_val, max_val)
-            normalized.append(((val-min_val)/(max_val - min_val)) * weight)
-            weight += 1
-        return sum(normalized)
+        # weight = -6
+        # for i, sensor in enumerate(self.sensors):
+        #     value = sensor.read()
+        #     computed_weight = self.calibration_data[i][1]
+        #     max_val = self.calibration_data[i][0]
+        #     val = clamp(sensor.read(), self.calibration_data[i][1], self.calibration_data[i][0])
+        #     normalized.append(((val-min_val)/(max_val - min_val)) * weight)
+        #     weight += 1
+        # Pre computed static values to optimize sensor reading speed.
+        # ((val-min_val)/(max_val - min_val)) * weight ==> val-min_val*pre_computed_weight
+        # The clamp fuction calls were also removed for speed reasons. 
+        return sum([(sensor.read()-self.calibration_data[i][1])*self.calibration_data[i][0] for (i, sensor) in enumerate(self.sensors)])
 
-    @classmethod
-    def task(cls, shares):
+    
+    def task(self, shares):
         # Task function to run the line sensor FSM
         # print(shares)
-        centroid_share = shares  # Shared variable to store the centroid value for other tasks
-        line_sensor = cls()
+        centroid_share: task_share.Share = shares  # Shared variable to store the centroid value for other tasks
+        line_sensor = self
 
         # Main loop for the line sensor task
         while True:
-            
-            # FSM: Determine action based on the current state
-            if line_sensor.state == line_sensor.S0_CALIBRATING:
-                from os import listdir
-                filelist = listdir()
-                if "IR_cal.txt" not in filelist:
-
-                    # CALIBRATING: Collect calibration samples to update sensor min/max values.
-                    line_sensor.calibrate_step()
-                    # (Optional) Log calibration progress here if needed.
-                else:
-                    if line_sensor.calibration_data == []:
-                        with open("IR_cal.txt", "r") as f:
-                            line_sensor.calibration_data = list(filter(lambda item: item != '', map(lambda str_list: (float(str_list[0]), float(str_list[1])), filter(lambda item: item != '', map(lambda item_str: item_str.split("(")[1].split(","), filter(lambda item: item != '', f.readline().split("[")[1].split("]")[0].split(")")))))))
-                            # line: str = f.readline()
-                            # split_one = list(filter(lambda item: item != '', line.split("[")[1].split("]")[0].split(")")))
-                            # print(f'Split One: {split_one}')
-                            # split_two = list(filter(lambda item: item != '', map(lambda item_str: item_str.split("(")[1].split(","), split_one)))
-                            # print(f'Split Two: {split_two}')
-                            # split_three = list(filter(lambda item: item != '', map(lambda str_list: (float(str_list[0]), float(str_list[1])), split_two)))
-                            # print(f'Split Three: {split_three}')
-                            # line_sensor.calibration_data = split_three
-                    line_sensor.state = line_sensor.S2_PROCESSING
-                yield line_sensor.state
-
-            elif line_sensor.state == line_sensor.S2_PROCESSING:
                 # PROCESSING: Calculate the centroid from sensor readings.
-                line_sensor.centroid = line_sensor.calculate_centroid()
+                # line_sensor.centroid = line_sensor.calculate_centroid()
+                # yield line_sensor.state
                 # print(line_sensor.centroid)
                 # Update the shared variable with the new centroid value
-                centroid_share.put(line_sensor.centroid)
+                centroid_share.put(sum([(sensor.read()-self.calibration_data[i][1])*self.calibration_data[i][0] for (i, sensor) in enumerate(self.sensors)]))
                 # After processing, return to the READING state for the next cycle.
-                yield line_sensor.state
-            else:
-                line_sensor.state = line_sensor.S2_PROCESSING
                 yield line_sensor.state
