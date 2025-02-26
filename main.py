@@ -213,7 +213,36 @@ def I2C_test():
     #     utime.sleep_ms(100)
 
 
+def motor_characterization():
+    try:
+        from collector import Collector
+
+        for i in range(15, 0, -1):
+            print(f"run in {i}")
+            utime.sleep(1)
+        Collector.run()
+    except KeyboardInterrupt:
+        print("\nTerminating Program")
+        HAL.__MOTOR_LEFT__.ENABLE.low()
+        HAL.__MOTOR_RIGHT__.ENABLE.low()
+        print(cotask.task_list)
+        return
+
+    except BaseException as e:
+        HAL.__MOTOR_LEFT__.ENABLE.low()
+        HAL.__MOTOR_RIGHT__.ENABLE.low()
+        print(cotask.task_list)
+        with open("log.txt", "a+") as log:
+            try:
+                print(e)
+                print(e, file=log)
+            except:
+                print(e, file=log)
+    return
+
+
 if __name__ == "__main__":
     # test_imu()
     # I2C_test()
-    main()
+    # main()
+    motor_characterization()

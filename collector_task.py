@@ -4,9 +4,8 @@ from collector import Collector
 
 def collector_task(shares=None):
     # Set the sampling interval (dt) in milliseconds
-    dt = 10  
     # Create a Collector instance
-    coll = Collector(dt)
+    coll = Collector()
     # Zero the encoders
     coll.encoder_left.zero()
     coll.encoder_right.zero()

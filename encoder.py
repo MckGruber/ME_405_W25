@@ -19,11 +19,15 @@ class Encoder:
         self.__position__: float = 0
         self.prev_count: int = 0
         self.delta: float = 0
-        self.last_update_time = utime.ticks_ms()
+        self.last_update_time = utime.ticks_us()
         self.__check_value__ = (self.__hal__.TIM.period() + 1) / 2
         self.__velocity__ = 0
 
     def update(self) -> None:
+        now = utime.ticks_us()
+        if utime.ticks_diff(now, self.last_update_time) == 0:
+            utime.sleep_ms(1)
+            now = utime.ticks_us()
         next_count = self.__hal__.TIM.counter()
         if self.prev_count - next_count > self.__check_value__:
             next_count += self.__hal__.TIM.period()
@@ -32,9 +36,8 @@ class Encoder:
         self.delta = next_count - self.prev_count
         self.prev_count = next_count
         self.__position__ += self.delta
-        now = utime.ticks_ms()
         self.__velocity__ = to_radians(int(self.delta)) / (
-            utime.ticks_diff(now, self.last_update_time) * 1e-3
+            (utime.ticks_diff(now, self.last_update_time)) * 1e-6
         )
         self.last_update_time = now
 
@@ -51,5 +54,5 @@ class Encoder:
         self.__hal__.TIM.counter(0)
 
     def velocity(self) -> float:
-        self.update()
+        # self.update()
         return self.__velocity__
