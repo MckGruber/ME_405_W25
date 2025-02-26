@@ -27,16 +27,14 @@ class MotorControl:
         self.motor_right = Motor(Vehicle_Side.RIGHT)
         self.was_off = True
 
-    def pid(
-        self, error: float, motor_left_effort: Share, motor_right_effort: Share
-    ) -> None:
+    def pid(self, error: float) -> None:
         if self.controler != None:
             self.new_set_point = self.controler.update(error)
             # print(f'error: {error}', end=" | ")
             # print(f'new set point: {"Left" if  abs(self.new_set_point) > 0 else "Right"} -> {MOTOR_SET_POINT + abs(self.new_set_point)}')
             if abs(error) > 0.1:
-                motor_left_effort.put(MOTOR_SET_POINT + self.new_set_point / 2)
-                motor_right_effort.put(MOTOR_SET_POINT - self.new_set_point / 2)
+                self.motor_left.__effort__(MOTOR_SET_POINT + self.new_set_point / 2)
+                self.motor_right.__effort__(MOTOR_SET_POINT - self.new_set_point / 2)
 
     @classmethod
     def task(cls, shares: tuple):
@@ -70,8 +68,8 @@ class MotorControl:
             gyro_z_share,
             control_flag,
             target_heading,
-            left_motor_pwm_effort_share,
-            right_motor_pwm_effort_share,
+            # left_motor_pwm_effort_share,
+            # right_motor_pwm_effort_share,
         ) = shares
         # print('shares parsed successfully')
         motor_control.motor_left.set_speed(MOTOR_SET_POINT)
@@ -89,11 +87,7 @@ class MotorControl:
                     # TODO: Implement closed-loop motor control logic here
                     if motor_control.state == S1_LINE_PID_CALC:
                         motor_control.controler = motor_control.line_controler
-                        motor_control.pid(
-                            0 - centroid,
-                            left_motor_pwm_effort_share,
-                            right_motor_pwm_effort_share,
-                        )
+                        motor_control.pid(0 - centroid)
                     elif motor_control.state == S2_HEADING_PID_CALC:
                         # print(f"Heading: {heading_share.get()} | Target Heading: {target_heading.get()}")
                         motor_control.controler = motor_control.heading_controler
@@ -106,13 +100,9 @@ class MotorControl:
                             if min(abs(error1), abs(error2)) == abs(error1)
                             else error2 / 16
                         )
-                        motor_control.pid(
-                            error,
-                            left_motor_pwm_effort_share,
-                            right_motor_pwm_effort_share,
-                        )
+                        motor_control.pid(error)
                         print(
-                            f"Error: ({error1/16}, {error2/16}) | Target: {target_heading.get()} | Heading: {heading_share.get()} | Left Motor: {left_motor_pwm_effort_share.get() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {right_motor_pwm_effort_share.get() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
+                            f"Error: ({error1/16}, {error2/16}) | Target: {target_heading.get()} | Heading: {heading_share.get()} | Left Motor: {motor_control.motor_left.__effort__() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {motor_control.motor_right.__effort__() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
                             end=" | ",
                         )
                     else:

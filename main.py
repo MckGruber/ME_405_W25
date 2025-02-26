@@ -15,24 +15,24 @@ def status_print():
         yield
 
 
-def echo_task(shares: tuple[task_share.Queue, NB_Input]):
-    buffer = shares[0]
-    nb_in = shares[1]
-    chars_written = 0
-    while buffer.any():
-        print(chr(buffer.get()), end="")
-        chars_written += 1
-    print()
-    chars_written += 1
-    print(">>", end="")
-    chars_written += 2
-    for char in nb_in._line:
-        print(char, end="")
-        chars_written += 1
-    print("\r" * chars_written)
-    chars_written = 0
-    if nb_in.any():
-        eval(nb_in.get())  # type: ignore
+# def echo_task(shares: tuple[task_share.Queue, NB_Input]):
+#     buffer = shares[0]
+#     nb_in = shares[1]
+#     chars_written = 0
+#     while buffer.any():
+#         print(chr(buffer.get()), end="")
+#         chars_written += 1
+#     print()
+#     chars_written += 1
+#     print(">>", end="")
+#     chars_written += 2
+#     for char in nb_in._line:
+#         print(char, end="")
+#         chars_written += 1
+#     print("\r" * chars_written)
+#     chars_written = 0
+#     if nb_in.any():
+#         eval(nb_in.get())  # type: ignore
 
 
 def main():
@@ -57,8 +57,8 @@ def main():
         target_heading_share = task_share.Share("f", True, "Target Heading")
 
         # Motor Velocity Share
-        left_motor_velocity_share = task_share.Share("f", True, "Left Motor Velocity")
-        right_motor_velocity_share = task_share.Share("f", True, "Right Motor Velocity")
+        # left_motor_velocity_share = task_share.Share("f", True, "Left Motor Velocity")
+        # right_motor_velocity_share = task_share.Share("f", True, "Right Motor Velocity")
 
         # Create tasks with shared control_flag
         motor_task = cotask.Task(
@@ -78,8 +78,8 @@ def main():
                 gyro_z_share,
                 control_flag,
                 target_heading_share,
-                left_motor_velocity_share,
-                right_motor_velocity_share,
+                # left_motor_velocity_share,
+                # right_motor_velocity_share,
             ),
         )
 
@@ -113,30 +113,30 @@ def main():
             ),
         )
 
-        left_motor_task = cotask.Task(
-            motor.Motor(Vehicle_Side.LEFT).task,
-            "Left Motor Task",
-            priority=40,
-            period=10,
-            profile=True,
-            shares=(left_motor_velocity_share),
-        )
+        # left_motor_task = cotask.Task(
+        #     motor.Motor(Vehicle_Side.LEFT).task,
+        #     "Left Motor Task",
+        #     priority=40,
+        #     period=10,
+        #     profile=True,
+        #     shares=(left_motor_velocity_share),
+        # )
 
-        right_motor_task = cotask.Task(
-            motor.Motor(Vehicle_Side.RIGHT).task,
-            "Right Motor Task",
-            priority=40,
-            period=10,
-            profile=True,
-            shares=(right_motor_velocity_share),
-        )
+        # right_motor_task = cotask.Task(
+        #     motor.Motor(Vehicle_Side.RIGHT).task,
+        #     "Right Motor Task",
+        #     priority=40,
+        #     period=10,
+        #     profile=True,
+        #     shares=(right_motor_velocity_share),
+        # )
 
         # Add tasks to the task list
         cotask.task_list.append(motor_task)
         cotask.task_list.append(line_task)
         cotask.task_list.append(imu_task)
-        cotask.task_list.append(right_motor_task)
-        cotask.task_list.append(left_motor_task)
+        # cotask.task_list.append(right_motor_task)
+        # cotask.task_list.append(left_motor_task)
 
         # Enable the motors by running the scheduler
         target_heading_share.put(0.0)
