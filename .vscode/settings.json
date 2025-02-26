@@ -9,5 +9,9 @@
   "python.languageServer": "Pylance",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.stubPath": "typings",
-  "editor.tabSize": 4
+  "editor.tabSize": 4,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  }
   }
