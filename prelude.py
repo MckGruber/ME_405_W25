@@ -18,3 +18,10 @@ V_LIN_SET = 5
 MOTOR_SET_POINT = 0
 
 MAX_SPEED = 300
+
+import task_share
+
+
+def echo(buffer: task_share.Queue, string: str, end="\n"):
+    for char in string + end:
+        buffer.put(ord(char))

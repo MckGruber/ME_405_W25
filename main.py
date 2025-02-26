@@ -15,6 +15,26 @@ def status_print():
         yield
 
 
+def echo_task(shares: tuple[task_share.Queue, NB_Input]):
+    buffer = shares[0]
+    nb_in = shares[1]
+    chars_written = 0
+    while buffer.any():
+        print(chr(buffer.get()), end="")
+        chars_written += 1
+    print()
+    chars_written += 1
+    print(">>", end="")
+    chars_written += 2
+    for char in nb_in._line:
+        print(char, end="")
+        chars_written += 1
+    print("\r" * chars_written)
+    chars_written = 0
+    if nb_in.any():
+        eval(nb_in.get())  # type: ignore
+
+
 def main():
     try:
         # Create shared variable for centroid data
@@ -128,11 +148,13 @@ def main():
         print("\nTerminating Program")
         HAL.__MOTOR_LEFT__.ENABLE.low()
         HAL.__MOTOR_RIGHT__.ENABLE.low()
+        print(cotask.task_list)
         return
 
     except BaseException as e:
         HAL.__MOTOR_LEFT__.ENABLE.low()
         HAL.__MOTOR_RIGHT__.ENABLE.low()
+        print(cotask.task_list)
         with open("log.txt", "a+") as log:
             try:
                 print(e)
