@@ -1,43 +1,58 @@
 import HAL
+import task_share
+import pyb
+
+# Shared variable for bump sensor state (1 = bump detected, 0 = no bump)
+bump_flag = task_share.Share('h', thread_protect=True, name="BumpFlag")
+bump_flag.put(0)  # Default: No bump detected
 
 class BumpSensor:
-    #  BumpSensor class to manage bump sensors
+    # Initialize bump sensors from HAL
     def __init__(self):
-        # Initialize bump sensors
+        # Initialize bump sensors from HAL
         self.left_sensors = [
             HAL.__BUMP_SENSOR__.LEFT.INSIDE,
             HAL.__BUMP_SENSOR__.LEFT.MIDDLE,
-            HAL.__BUMP_SENSOR__.LEFT.OUTSIDE
+            HAL.__BUMP_SENSOR__.LEFT.OUTSIDE,
         ]
         self.right_sensors = [
             HAL.__BUMP_SENSOR__.RIGHT.INSIDE,
             HAL.__BUMP_SENSOR__.RIGHT.MIDDLE,
-            HAL.__BUMP_SENSOR__.RIGHT.OUTSIDE
+            HAL.__BUMP_SENSOR__.RIGHT.OUTSIDE,
         ]
 
-    def read_left(self):
-        # Reads the state of the left bump sensors.
-        return [not sensor.value() for sensor in self.left_sensors]
+        # Attaching interrupt handlers to each sensor
+        for sensor in self.left_sensors + self.right_sensors:
+            sensor.irq(trigger=pyb.Pin.IRQ_FALLING, handler=self.bump_callback)
 
-    def read_right(self):
-        # Reads the state of the right bump sensors.
-        return [not sensor.value() for sensor in self.right_sensors]
+    def bump_callback(self, pin):
+        # Callback function for bump sensor interrupts
+        pyb.delay(50)  # Debounce
+        if not pin.value():  # Ensure the pin is still low (pressed)
+            bump_flag.put(1)
+            print("Bump detected!")
 
     def any_pressed(self):
-        # Checks if any of the bump sensors are pressed.
-        return any(self.read_left()) or any(self.read_right())
+        # Checking if any bump sensor is pressed
+        return any(not sensor.value() for sensor in self.left_sensors + self.right_sensors)
+
+    def reset_flag(self):
+        # Reset the bump flag
+        bump_flag.put(0)
 
     def get_collision_side(self):
-        # Determines which side of the robot has a collision.
-        left_hit = any(self.read_left())
-        right_hit = any(self.read_right())
+        # Determine which side the collision occurred on
+        left_hit = any(not sensor.value() for sensor in self.left_sensors)
+        right_hit = any(not sensor.value() for sensor in self.right_sensors)
 
-        # Determine the collision side for debugging purposes.
         if left_hit and right_hit:
             return "BOTH"
         elif left_hit:
             return "LEFT"
         elif right_hit:
             return "RIGHT"
-        else:
-            return "NONE"
+        return "NONE"
+
+def get_bump_flag_share():
+    # Return the bump flag share
+    return bump_flag

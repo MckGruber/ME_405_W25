@@ -3,19 +3,20 @@ import struct
 import HAL
 from task_share import Share
 
+
 class BNO055:
     # BNO055 I2C Address
     I2C_ADDR = 0x28
 
     # Register addresses
-    REG_OPR_MODE = 0x3D # Operation Mode Register
+    REG_OPR_MODE = 0x3D  # Operation Mode Register
     REG_CALIB_STAT = 0x35  # Calibration Status Register
-    REG_EULER_ANGLES = 0x1A # Euler Angles Data Register
-    REG_GYRO_DATA = 0x14 # Gyroscope Data Register
+    REG_EULER_ANGLES = 0x1A  # Euler Angles Data Register
+    REG_GYRO_DATA = 0x14  # Gyroscope Data Register
     REG_CALIBRATION_DATA = 0x55  # Starting register for calibration coefficients
 
     # BNO055 Modes (Fusion Mode Examples)
-    MODE_CONFIG = 0x00 # Configuration mode
+    MODE_CONFIG = 0x00  # Configuration mode
     MODE_NDOF = 0x0C  # Full sensor fusion mode
 
     # Task State Variables
@@ -52,23 +53,31 @@ class BNO055:
     def get_calibration_status(self) -> tuple[int, int, int, int]:
         # Read the calibration status
         status = self.i2c.mem_read(1, self.I2C_ADDR, self.REG_CALIB_STAT)[0]
-        sys = (status >> 6) & 0x03 # System calibration status
-        gyro = (status >> 4) & 0x03 # Gyroscope calibration status
-        accel = (status >> 2) & 0x03 # Accelerometer calibration status
-        mag = status & 0x03 # Magnetometer calibration status
+        sys = (status >> 6) & 0x03  # System calibration status
+        gyro = (status >> 4) & 0x03  # Gyroscope calibration status
+        accel = (status >> 2) & 0x03  # Accelerometer calibration status
+        mag = status & 0x03  # Magnetometer calibration status
         return (sys, gyro, accel, mag)
 
     def get_euler_angles(self) -> tuple[int, int, int]:
         # Reads Euler angles (heading, pitch, roll) from the IMU
         raw_data = self.i2c.mem_read(6, self.I2C_ADDR, self.REG_EULER_ANGLES)
-        heading, pitch, roll = struct.unpack('<hhh', raw_data)
-        return heading, pitch, roll  # Undid conversion in order to possibly improve performance
+        heading, pitch, roll = struct.unpack("<hhh", raw_data)
+        return (
+            heading,
+            pitch,
+            roll,
+        )  # Undid conversion in order to possibly improve performance
 
     def get_angular_velocity(self) -> tuple[float, float, float]:
         # Reads angular velocity (gyroscope data) from the IMU
         raw_data = self.i2c.mem_read(6, self.I2C_ADDR, self.REG_GYRO_DATA)
-        gyro_x, gyro_y, gyro_z = struct.unpack('<hhh', raw_data)
-        return gyro_x, gyro_y, gyro_z  # Undid conversion in order to possibly improve performance
+        gyro_x, gyro_y, gyro_z = struct.unpack("<hhh", raw_data)
+        return (
+            gyro_x,
+            gyro_y,
+            gyro_z,
+        )  # Undid conversion in order to possibly improve performance
 
     def get_calibration_data(self):
         # Reads calibration coefficients from the IMU
@@ -94,6 +103,7 @@ class BNO055:
         # Loads calibration data from a file
 
         from os import listdir
+
         file_list = listdir()
         if filename in file_list:
             with open(filename, "rb") as f:
@@ -108,7 +118,7 @@ class BNO055:
     def calibrate_if_needed(self):
         # Check and perform calibration if needed
         # if not self.load_calibration():
-            # self.set_mode(self.MODE_CONFIG)
+        # self.set_mode(self.MODE_CONFIG)
         # print("[BNO055] Manual calibration required. Move IMU in all directions.")
         if not self.load_calibration():
             calibration_done = False
@@ -119,9 +129,8 @@ class BNO055:
                 pyb.delay(500)
             self.save_calibration()
         print("[BNO055] Calibration complete and saved.")
-            # self.set_mode(self.MODE_NDOF)
+        # self.set_mode(self.MODE_NDOF)
 
-    
     def task(self, shares):
         centroid_share: Share = shares[0]
         heading_share: Share = shares[1]
@@ -134,6 +143,7 @@ class BNO055:
         target_heading: Share = shares[8]
         imu = self
         while True:
+            # print("IMU")
             if imu.state == imu.S0_CALIBRATION:
                 imu.calibrate_if_needed()
                 imu.state = imu.S1_ANGLES
@@ -143,7 +153,7 @@ class BNO055:
                 heading_share.put(angles[0])
                 pitch_share.put(angles[1])
                 roll_share.put(angles[2])
-                
+
                 # print(f'Target Heading: {target_heading.get()} | Measured Heading: {heading_share.get()} | error1: {error1} | error2: {error2} | error: {error}')
                 imu.state = imu.S2_VELCOITY
                 yield imu.state

@@ -15,7 +15,7 @@ def clamp(value, min_value, max_value):
 OM_SET = 0
 V_LIN_SET = 5
 
-MOTOR_SET_POINT = 0
+MOTOR_SET_POINT = 20
 
 MAX_SPEED = 300
 

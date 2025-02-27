@@ -1,6 +1,6 @@
 from prelude import *
 import HAL, motor_control_task, userbutton, utime, pyb, motor
-from linesensor import LineSensor
+from line_sensor import LineSensor
 import task_share, cotask
 from nb_input import NB_Input
 import gc
@@ -244,5 +244,5 @@ def motor_characterization():
 if __name__ == "__main__":
     # test_imu()
     # I2C_test()
-    # main()
-    motor_characterization()
+    main()
+    # motor_characterization()

@@ -15,14 +15,13 @@ class MotorControl:
     # FSM states
     def __init__(
         self,
-        encoder_dt: int,
         line_pid_controler: ClosedLoop,
         heading_pid_controler: ClosedLoop,
     ) -> None:
         self.line_controler = line_pid_controler
         self.heading_controler = heading_pid_controler
         self.controler: ClosedLoop | None
-        self.state = 0  # Initial FSM state
+        self.state = S0_STOP  # Initial FSM state
         self.motor_left = Motor(Vehicle_Side.LEFT)
         self.motor_right = Motor(Vehicle_Side.RIGHT)
         self.was_off = True
@@ -38,14 +37,20 @@ class MotorControl:
 
     @classmethod
     def task(cls, shares: tuple):
+
         # TODO Update this pid with the new numbers - We need to redo Lab 2 but correctly so we can actually get the numbers we need to calculate the speed
-        line_pid_controler = ClosedLoop(kp=5, ki=0.5, kd=0)
+        line_pid_controler = ClosedLoop(
+            # Almost Working, (20, .2, .02)
+            kp=(50 * (MOTOR_SET_POINT / 100)),
+            ki=0.2,
+            kd=0.002,
+        )
         heading_pid_controler = ClosedLoop(kp=2, ki=0.01, kd=0.002)
         motor_control = cls(
-            20,
             line_pid_controler=line_pid_controler,
             heading_pid_controler=heading_pid_controler,
         )
+
         # Get shared variables
         centroid_share: Share
         heading_share: Share
@@ -75,6 +80,7 @@ class MotorControl:
         motor_control.motor_left.set_speed(MOTOR_SET_POINT)
         motor_control.motor_right.set_speed(MOTOR_SET_POINT)
         while True:
+            # print(f"Motor Control: {motor_control.state}")
             if control_flag.get() == 1 and motor_control.state != S0_STOP:
                 # print(f"Motor Conrol: {motor_control.state}")
 
@@ -87,7 +93,12 @@ class MotorControl:
                     # TODO: Implement closed-loop motor control logic here
                     if motor_control.state == S1_LINE_PID_CALC:
                         motor_control.controler = motor_control.line_controler
-                        motor_control.pid(0 - centroid)
+                        motor_control.pid(7 - centroid)
+                        print(
+                            f"Error: ({7 - centroid}) | Target: {0} | Line Centroid: {centroid_share.get()} | Left Motor: {motor_control.motor_left.__effort__() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {motor_control.motor_right.__effort__() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
+                            end=" | ",
+                        )
+                        yield motor_control.state
                     elif motor_control.state == S2_HEADING_PID_CALC:
                         # print(f"Heading: {heading_share.get()} | Target Heading: {target_heading.get()}")
                         motor_control.controler = motor_control.heading_controler
@@ -101,17 +112,13 @@ class MotorControl:
                             else error2 / 16
                         )
                         motor_control.pid(error)
-                        print(
-                            f"Error: ({error1/16}, {error2/16}) | Target: {target_heading.get()} | Heading: {heading_share.get()} | Left Motor: {motor_control.motor_left.__effort__() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {motor_control.motor_right.__effort__() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
-                            end=" | ",
-                        )
+                        # print(
+                        #     f"Error: ({error1/16}, {error2/16}) | Target: {target_heading.get()} | Heading: {heading_share.get()} | Left Motor: {motor_control.motor_left.__effort__() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {motor_control.motor_right.__effort__() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
+                        #     end=" | ",
+                        # )
                     else:
                         pass
-                    motor_control.state = (
-                        S1_LINE_PID_CALC
-                        if target_heading.get() == None
-                        else S2_HEADING_PID_CALC
-                    )
+                    motor_control.state = S1_LINE_PID_CALC
                 else:
                     print("NO CENTROID FOUND")
                     # motor_control.motor_left.effort(15)
@@ -125,16 +132,14 @@ class MotorControl:
                 motor_control.motor_left.disable()
                 motor_control.motor_right.disable()
                 motor_control.state = S0_STOP
+                yield motor_control.state
             elif control_flag.get() == 1 and motor_control.state == S0_STOP:
                 print("Closed-loop control ON")
                 motor_control.motor_left.enable()
                 motor_control.motor_right.enable()
-                motor_control.state = (
-                    S1_LINE_PID_CALC
-                    if target_heading.get() == None
-                    else S2_HEADING_PID_CALC
-                )
+                motor_control.state = S1_LINE_PID_CALC
+
             else:
-                continue
+                yield motor_control.state
 
             yield motor_control.state  # Yield control to the scheduler
