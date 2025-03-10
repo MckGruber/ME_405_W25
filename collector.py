@@ -26,8 +26,8 @@ class Collector:
 
     def set_speed(self, speed: int):
         self.speed = speed
-        self.motor_left.__effort__(speed)
-        self.motor_right.__effort__(speed)
+        self.motor_left.effort(speed)
+        self.motor_right.effort(speed)
 
     def update(self) -> None:
         self.time.append(time.ticks_us())
@@ -43,9 +43,9 @@ class Collector:
             self.right_velocity.append(self.encoder_right.velocity())
 
     def run_speed(self, speed: int) -> str:
-        self.motor_left.__effort__(0)
+        self.motor_left.effort(0)
         self.motor_left.disable()
-        self.motor_right.__effort__(0)
+        self.motor_right.effort(0)
         self.motor_right.disable()
         self.encoder_left.zero()
         self.encoder_left.zero()

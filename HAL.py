@@ -24,6 +24,10 @@ _PC11 = Pin(Pin.cpu.C11, Pin.OUT_PP, value=0)  # EVENTOUT
 _PC12 = Pin(Pin.cpu.C12, mode=Pin.OUT_PP, value=0)  # EVENTOUT
 _PD2 = Pin(Pin.cpu.D2, Pin.OUT_PP, value=0)  # EVENTOUT
 
+# #+++++Voltage Measurement#+++++
+_PA5 = Pin(Pin.cpu.A5)
+_ADC_A5 = ADC(_PA5)
+
 
 class __MOTOR_LEFT__:
     PWM = _TIM2_CH2
@@ -40,6 +44,7 @@ class __MOTOR_RIGHT__:
 class __MOTOR__:
     LEFT = __MOTOR_LEFT__
     RIGHT = __MOTOR_RIGHT__
+    VOLTAGE_MESUREMENT = _ADC_A5
 
 
 # ---------------------------------------------------------------------
@@ -77,6 +82,7 @@ class __ENCODER__:
 
 
 # #------------------------------
+
 
 # #---------Line Sensor----------
 _PA0 = Pin(Pin.cpu.A0)  # ADC_IN

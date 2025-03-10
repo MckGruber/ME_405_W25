@@ -3,8 +3,8 @@ import task_share
 from prelude import *
 import pyb
 import array
-import gc
 import utime
+import math
 
 
 class LineSensor:
@@ -34,6 +34,7 @@ class LineSensor:
         self.sample_count = 0  # Counter for calibration samples taken
         self.centroid = None  # Last computed centroid value
         self.timer = pyb.Timer(6, period=0xFFFF, prescaler=0)
+        self.buff: int = 0
         from os import listdir
 
         filelist = listdir()
@@ -44,16 +45,22 @@ class LineSensor:
 
     def read_sampled(self, sensor: pyb.ADC):
         # Read and average ADC values from the sensor
-        buf = array.array(
-            "H", range(self.SUPER_SAMPLE_COUNT)
-        )  # Buffer for ADC readings
-        for i in range(self.SUPER_SAMPLE_COUNT):
-            buf[i] = sensor.read()
-            utime.sleep_us(
-                1
-            )  # Unsure about this one, this will read using Timer 6 at 20kHz (0.05ms)
-        return sum(buf) / len(buf)  # Return the averaged value
 
+        ## Moved to the class object, no need to initilize this bitch every 10ms
+        # buf = array.array(
+        #     "H", range(self.SUPER_SAMPLE_COUNT)
+        # )  # Buffer for ADC readings
+
+        self.buff = 0
+        for _i in range(self.SUPER_SAMPLE_COUNT):
+            self.buff += sensor.read()
+            ## Should be uneeded, as wating takes a minimum of 6.5 ms of the 10ms of the period.
+            # utime.sleep_us(
+            #     1
+            # )  # Unsure about this one, this will read using Timer 6 at 20kHz (0.05ms)
+        return self.buff / self.SUPER_SAMPLE_COUNT  # Return the averaged value
+
+    # Time: N/A - Not run in a task
     def calibrate_step(self):
         # Calibration step to update min/max values for each sensor
         continue_min = input("Place on White. Ready to continue [Y]/N: ")
@@ -72,6 +79,7 @@ class LineSensor:
             print(data, file=f)
             self.calibration_data = data
 
+    # Time: N/A - Not run in a task
     def load_calibration(self):
         # Load calibration data from file
         with open("IR_cal.txt", "r") as f:
@@ -93,33 +101,55 @@ class LineSensor:
                     ),
                 )
             )
-            print(self.calibration_data)
+        if any(
+            item[0] > 4095 or item[0] < 0 or item[1] > 4095 or item[1] < 0
+            for item in self.calibration_data
+        ):
+            import os
 
-    def calculate_centroid(self) -> float:
+            print("Calibration Data Out of bounds")
+            os.remove("IR_cal.txt")
+            self.calibrate_step()
+        print(self.calibration_data)
+
+    def calculate_centroid(self) -> tuple[float, float]:
         # Calculate the centroid based on sensor readings and calibration data
-        return sum(
-            [
-                (
-                    clamp(
-                        self.read_sampled(sensor),
-                        self.calibration_data[i][1],
-                        self.calibration_data[i][0],
-                    )
-                    - self.calibration_data[i][1]
+        values = [
+            clamp(
+                self.read_sampled(sensor),
+                self.calibration_data[i][1],
+                self.calibration_data[i][0],
+            )
+            for (i, sensor) in enumerate(self.sensors)
+        ]
+        centroid = sum([value * (i - 6) for (i, value) in enumerate(values)])
+        average = sum(values) / len(values)
+        stdev = math.sqrt(sum([(val - average) ** 2 for val in values]) / len(values))
+        if DEBUG:
+            print(
+                " | ".join(
+                    [
+                        f"Centroid Error: {centroid}",
+                        f"Average: {average}",
+                        f"Standard Deviation: {stdev}",
+                    ]
                 )
-                / (
-                    (self.calibration_data[i][0] - self.calibration_data[i][1])
-                    * (i + 1)
-                )
-                for (i, sensor) in enumerate(self.sensors)
-            ]
-        )
+            )
+        return (centroid, stdev)
 
     def task(self, shares):
         # Task to continuously update the centroid value
-        centroid_share: task_share.Share = shares  # Shared variable
+        control_flag: task_share.Share
+        centroid_share: task_share.Share
+        centroid_stdev_share: task_share.Share
+        (control_flag, centroid_share, centroid_stdev_share) = shares  # Shared variable
         while True:
-            # print(f"LineSensor")
-            centroid_share.put(self.calculate_centroid())  # Update the centroid
-            # print(f"Centroid: {centroid_share.get()}")
-            yield self.state
+            if control_flag.get() == 0:
+                yield self.state
+            else:
+                # print(f"LineSensor")
+                centroid, stdev = self.calculate_centroid()  # Update the centroid
+                centroid_share.put(centroid)
+                centroid_stdev_share.put(stdev)
+                # print(f"Centroid: {centroid_share.get()}")
+                yield self.state

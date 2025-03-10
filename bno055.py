@@ -132,40 +132,50 @@ class BNO055:
         # self.set_mode(self.MODE_NDOF)
 
     def task(self, shares):
-        centroid_share: Share = shares[0]
-        heading_share: Share = shares[1]
-        pitch_share: Share = shares[2]
-        roll_share: Share = shares[3]
-        gyro_x_share: Share = shares[4]
-        gyro_y_share: Share = shares[5]
-        gyro_z_share: Share = shares[6]
-        control_flag: Share = shares[7]
-        target_heading: Share = shares[8]
+        control_flag: Share
+        heading_share: Share
+        pitch_share: Share
+        roll_share: Share
+        gyro_x_share: Share
+        gyro_y_share: Share
+        gyro_z_share: Share
+        (
+            control_flag,
+            heading_share,
+            pitch_share,
+            roll_share,
+            gyro_x_share,
+            gyro_y_share,
+            gyro_z_share,
+        ) = shares
         imu = self
         while True:
-            # print("IMU")
-            if imu.state == imu.S0_CALIBRATION:
-                imu.calibrate_if_needed()
-                imu.state = imu.S1_ANGLES
-                yield imu.state
-            elif imu.state == imu.S1_ANGLES:
-                angles = imu.get_euler_angles()
-                heading_share.put(angles[0])
-                pitch_share.put(angles[1])
-                roll_share.put(angles[2])
-
-                # print(f'Target Heading: {target_heading.get()} | Measured Heading: {heading_share.get()} | error1: {error1} | error2: {error2} | error: {error}')
-                imu.state = imu.S2_VELCOITY
-                yield imu.state
-            elif imu.state == imu.S2_VELCOITY:
-                velocities = imu.get_angular_velocity()
-                gyro_x_share.put(velocities[0])
-                gyro_y_share.put(velocities[1])
-                gyro_z_share.put(velocities[2])
-                imu.state = imu.S1_ANGLES
+            if control_flag.get() == 0:
                 yield imu.state
             else:
-                print(f"Unknown state Reached: {imu}")
-                imu.state = imu.S1_ANGLES
+                # print("IMU")
+                if imu.state == imu.S0_CALIBRATION:
+                    imu.calibrate_if_needed()
+                    imu.state = imu.S1_ANGLES
+                    yield imu.state
+                elif imu.state == imu.S1_ANGLES:
+                    angles = imu.get_euler_angles()
+                    heading_share.put(angles[0])
+                    pitch_share.put(angles[1])
+                    roll_share.put(angles[2])
+
+                    # print(f'Target Heading: {target_heading.get()} | Measured Heading: {heading_share.get()} | error1: {error1} | error2: {error2} | error: {error}')
+                    imu.state = imu.S2_VELCOITY
+                    yield imu.state
+                elif imu.state == imu.S2_VELCOITY:
+                    velocities = imu.get_angular_velocity()
+                    gyro_x_share.put(velocities[0])
+                    gyro_y_share.put(velocities[1])
+                    gyro_z_share.put(velocities[2])
+                    imu.state = imu.S1_ANGLES
+                    yield imu.state
+                else:
+                    print(f"Unknown state Reached: {imu}")
+                    imu.state = imu.S1_ANGLES
+                    yield imu.state
                 yield imu.state
-            yield imu.state

@@ -1,53 +1,40 @@
 from prelude import *
 import HAL
 from closed_loop import ClosedLoop
-import task_share
+from task_share import Share, Queue
 from encoder import Encoder
 
 
 class Motor:
     def __init__(self, side: int) -> None:
         self._side: int = side
+        self.GAIN_INV = 7.2 / 3.11
         self.__hal__ = (
             HAL.__MOTOR_LEFT__ if side == Vehicle_Side.LEFT else HAL.__MOTOR_RIGHT__
         )
+        self.voltage_measurement = HAL.__MOTOR__.VOLTAGE_MESUREMENT
         self.direction = (
             MotorDirection.FWD
             if self.__hal__.DIRECTION.value() == MotorDirection.FWD
             else MotorDirection.REV
         )
         self.is_on = bool(self.__hal__.ENABLE.value())
-        self.controller: ClosedLoop = ClosedLoop(kp=2, ki=0.01, kd=0.005)
-        self.velocity_set_point_share: task_share.Share | None = None
+        self.controller: ClosedLoop = ClosedLoop(kp=0.8, ki=-0.05, kd=0.005)
+        self.set_point = SPEED_SET_POINT
         self.encoder = Encoder(side)
 
-    def __set_dir__(self, dir: int):
+    def set_dir(self, dir: int):
         self.direction = dir
         self.__hal__.DIRECTION.value(dir)
 
-    def __effort__(self, value: int | float | None = None) -> int | float:
+    def effort(self, value: int | float | None = None) -> int | float:
         if value == None:
             self.__hal__.PWM.pulse_width_percent()
             return self.__hal__.PWM.pulse_width_percent()
+        self.set_dir(MotorDirection.FWD if value > 0 else MotorDirection.REV)
+        self.__hal__.PWM.pulse_width_percent(abs(value))
 
-        effort = (
-            clamp(abs(value), -100, 100)
-            if type(value) == int
-            else float(clamp(abs(value), -100, 100))
-        )
-        self.__set_dir__(MotorDirection.FWD if value > 0 else MotorDirection.REV)
-        self.__hal__.PWM.pulse_width_percent(effort)
-
-        return effort
-
-    def set_speed(self, speed: int) -> None:
-        # Ensure speed is within valid range
-        speed = clamp(
-            speed, -MAX_SPEED, MAX_SPEED
-        )  # Ensure speed stays within valid range
-        if self.velocity_set_point_share != None:
-            # TODO set the pwm set point to what this effort is 'supposed' to be
-            self.velocity_set_point_share.put(speed)
+        return value
 
     def enable(self):
         if self.is_on:
@@ -63,9 +50,73 @@ class Motor:
         self.__hal__.ENABLE.low()
 
     def task(self, shares):
-        self.velocity_set_point_share: task_share.Share | None = shares[0]
+        control_flag: Share
+        yaw_effort_percent_share: Share
+        position_reset_flag: Share
+        position_share: Queue
+        (
+            control_flag,
+            yaw_effort_percent_share,
+            position_reset_flag,
+            position_share,
+        ) = shares
         while True:
-            if self.velocity_set_point_share != None:
-                error = self.velocity_set_point_share.get() - self.encoder.velocity()
-            self.__effort__(self.__effort__() + self.controller.update(error))
+            # if DEBUG:
+            #     print(
+            #         f"{"Left" if self._side == Vehicle_Side.LEFT else "Right"} Motor Task"
+            #     )
+            self.encoder.update()
+            if bool(position_reset_flag.get()):
+                self.encoder.zero()
+                position_reset_flag.put(0)
+            position_share.put(self.encoder.position())
+            # -------------- <On-Off Button> -------------- #
+            if control_flag.get() == 0:
+                if self.is_on:
+                    print(
+                        f'Motor {"Left" if self._side == Vehicle_Side.LEFT else "Right"} Off'
+                    )
+                    self.disable()
+            else:
+                if not self.is_on:
+                    self.enable()
+                # -------------- </On-Off Button> -------------- #
+
+                # -------------- <Velocity Calcs> -------------- #
+
+                velocity_set_point = (
+                    yaw_effort_percent_share.get()
+                    if self._side == Vehicle_Side.LEFT
+                    else -yaw_effort_percent_share.get()
+                ) * (
+                    get_voltage() / self.GAIN_INV  # Velocity from Efort %
+                ) + SPEED_SET_POINT  # Speed Set Point
+
+                # -------------- <Motor Control> --------------- #
+
+                error = velocity_set_point - self.encoder.velocity()
+                adjustment = (
+                    self.controller.update(error)
+                    # if self._side == Vehicle_Side.RIGHT
+                    # else self.controller.update(error)
+                )
+                self.effort(
+                    ((self.GAIN_INV / get_voltage()) * velocity_set_point) + adjustment
+                )
+                # if self._side == Vehicle_Side.LEFT:
+                #     if DEBUG:
+                #         print(
+                #             f"{"Left" if self._side == Vehicle_Side.LEFT else "Right"} Motor=> "
+                #             + " | ".join(
+                #                 [
+                #                     f"Gain Value: {((self.GAIN_INV / get_voltage()) * velocity_set_point)}",
+                #                     # f"Velocity: {self.encoder.velocity() * (-1 if HAL.__MOTOR_LEFT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
+                #                     f"Error: {error}",
+                #                     f"PID Adjustment: {adjustment}",
+                #                     f" PWM Percent: {self.effort()}",
+                #                 ]
+                #             ),
+                #             end=" ",
+                #         )
             yield
+            # -------------- </Motor Control> --------------- #

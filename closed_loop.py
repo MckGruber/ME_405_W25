@@ -1,4 +1,5 @@
 import utime
+from prelude import *
 
 
 class ClosedLoop:
@@ -27,7 +28,6 @@ class ClosedLoop:
 
         self.previous_error = error
         self.last_update_time = now
-        pid = P_out + I_out + D_out
-
-        print(f"kp: {P_out} | ki: {I_out} | kd: {D_out}")
+        if DEBUG:
+            print(f"| kp: {P_out} | ki: {I_out} | kd: {D_out} | ")
         return P_out + I_out + D_out

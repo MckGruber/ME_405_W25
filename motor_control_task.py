@@ -1,145 +1,127 @@
 from prelude import *
 from task_share import Share
 from closed_loop import ClosedLoop
-from motor import Motor
-from prelude import Vehicle_Side
-from encoder import Encoder
 import HAL
-
-S1_LINE_PID_CALC = 1
-S2_HEADING_PID_CALC = 2
-S0_STOP = -1
 
 
 class MotorControl:
+    S1_LINE_PID_CALC = 1
+    S2_HEADING_PID_CALC = 2
+    S0_STOP = -1
+
     # FSM states
     def __init__(
         self,
-        line_pid_controler: ClosedLoop,
-        heading_pid_controler: ClosedLoop,
+        yaw_effort_percent_share: Share,
     ) -> None:
-        self.line_controler = line_pid_controler
-        self.heading_controler = heading_pid_controler
+        self.yaw_effort_percent_share = yaw_effort_percent_share
         self.controler: ClosedLoop | None
-        self.state = S0_STOP  # Initial FSM state
-        self.motor_left = Motor(Vehicle_Side.LEFT)
-        self.motor_right = Motor(Vehicle_Side.RIGHT)
-        self.was_off = True
+        self.state = MotorControl.S0_STOP  # Initial FSM state
 
-    def pid(self, error: float) -> None:
+    def pid(
+        self,
+        error: float,
+    ) -> None:
         if self.controler != None:
             self.new_set_point = self.controler.update(error)
-            # print(f'error: {error}', end=" | ")
-            # print(f'new set point: {"Left" if  abs(self.new_set_point) > 0 else "Right"} -> {MOTOR_SET_POINT + abs(self.new_set_point)}')
-            if abs(error) > 0.1:
-                self.motor_left.__effort__(MOTOR_SET_POINT + self.new_set_point / 2)
-                self.motor_right.__effort__(MOTOR_SET_POINT - self.new_set_point / 2)
+            self.yaw_effort_percent_share.put(self.new_set_point)
+            # self.left_motor_velocity_set_point_share.put(self.new_set_point / 2)
+            # self.right_motor_velocity_set_point_share.put(-self.new_set_point / 2)
 
     @classmethod
     def task(cls, shares: tuple):
-
-        # TODO Update this pid with the new numbers - We need to redo Lab 2 but correctly so we can actually get the numbers we need to calculate the speed
+        # TODO Retune these after the cascade control rewrite
         line_pid_controler = ClosedLoop(
             # Almost Working, (20, .2, .02)
-            kp=(50 * (MOTOR_SET_POINT / 100)),
+            kp=(50 * MOTOR_SET_POINT_PERCENT),
             ki=0.2,
             kd=0.002,
         )
-        heading_pid_controler = ClosedLoop(kp=2, ki=0.01, kd=0.002)
-        motor_control = cls(
-            line_pid_controler=line_pid_controler,
-            heading_pid_controler=heading_pid_controler,
+        heading_pid_controler = ClosedLoop(
+            # Old Values before Cascade Control: (2, 0.01, 0.002)
+            # Values were the old values, but halved, in accordance to the change to the self.pid() function
+            kp=1,
+            ki=0.005,
+            kd=0.001,
         )
 
         # Get shared variables
         centroid_share: Share
         heading_share: Share
-        pitch_share: Share
-        roll_share: Share
-        gyro_x_share: Share
-        gyro_y_share: Share
-        gyro_z_share: Share
+        target_heading_share: Share
+        motor_control_state_share: Share
         control_flag: Share
-        target_heading: Share
-        left_motor_pwm_effort_share: Share
-        right_motor_pwm_effort_share: Share
+        yaw_effort_percent_share: Share
         (
             centroid_share,
             heading_share,
-            pitch_share,
-            roll_share,
-            gyro_x_share,
-            gyro_y_share,
-            gyro_z_share,
+            target_heading_share,
+            motor_control_state_share,
             control_flag,
-            target_heading,
-            # left_motor_pwm_effort_share,
-            # right_motor_pwm_effort_share,
+            yaw_effort_percent_share,
         ) = shares
-        # print('shares parsed successfully')
-        motor_control.motor_left.set_speed(MOTOR_SET_POINT)
-        motor_control.motor_right.set_speed(MOTOR_SET_POINT)
+        motor_control = cls(
+            yaw_effort_percent_share,
+        )
         while True:
-            # print(f"Motor Control: {motor_control.state}")
-            if control_flag.get() == 1 and motor_control.state != S0_STOP:
-                # print(f"Motor Conrol: {motor_control.state}")
-
-                # Read the centroid value from the line sensor
-                centroid: float | None = centroid_share.get()
-
-                if centroid != None and target_heading.get() != None:
-                    # print(f"Centroid: {centroid}")
-
-                    # TODO: Implement closed-loop motor control logic here
-                    if motor_control.state == S1_LINE_PID_CALC:
-                        motor_control.controler = motor_control.line_controler
-                        motor_control.pid(7 - centroid)
-                        print(
-                            f"Error: ({7 - centroid}) | Target: {0} | Line Centroid: {centroid_share.get()} | Left Motor: {motor_control.motor_left.__effort__() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {motor_control.motor_right.__effort__() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
-                            end=" | ",
-                        )
-                        yield motor_control.state
-                    elif motor_control.state == S2_HEADING_PID_CALC:
-                        # print(f"Heading: {heading_share.get()} | Target Heading: {target_heading.get()}")
-                        motor_control.controler = motor_control.heading_controler
-                        error1: int = (
-                            target_heading.get() - heading_share.get()
-                        ) % 5670
-                        error2: int = error1 - 5670 if error1 > 0 else error1 + 5670
-                        error = (
-                            error1 / 16
-                            if min(abs(error1), abs(error2)) == abs(error1)
-                            else error2 / 16
-                        )
-                        motor_control.pid(error)
-                        # print(
-                        #     f"Error: ({error1/16}, {error2/16}) | Target: {target_heading.get()} | Heading: {heading_share.get()} | Left Motor: {motor_control.motor_left.__effort__() * (-1 if motor_control.motor_left.direction != 0 else 1)} | Right Motor: {motor_control.motor_right.__effort__() * (-1 if motor_control.motor_right.direction != 0 else 1)}",
-                        #     end=" | ",
-                        # )
-                    else:
-                        pass
-                    motor_control.state = S1_LINE_PID_CALC
-                else:
-                    print("NO CENTROID FOUND")
-                    # motor_control.motor_left.effort(15)
-                    # motor_control.motor_right.effort(15)
-                yield motor_control.state
-
-            elif control_flag.get() == 0 and motor_control.state != S0_STOP:
-                print("Closed-loop control OFF")
-
-                # Stop the motors when control is disabled
-                motor_control.motor_left.disable()
-                motor_control.motor_right.disable()
-                motor_control.state = S0_STOP
-                yield motor_control.state
-            elif control_flag.get() == 1 and motor_control.state == S0_STOP:
-                print("Closed-loop control ON")
-                motor_control.motor_left.enable()
-                motor_control.motor_right.enable()
-                motor_control.state = S1_LINE_PID_CALC
-
+            if control_flag.get() == 0:
+                if motor_control.state != motor_control.S0_STOP:
+                    motor_control.state = motor_control.S0_STOP
             else:
-                yield motor_control.state
+                ## -------------------------------------- Main Course Completion Loop ----------------------------------------------- ##
+                # each state should do the following steps:
+                # 1. set the appropriate ClosedLoop Controler
+                # 2. Defines a set point
+                # 3. Defines an error function
+                # 4. calculates the error
+                # 5. passes the error to the motor_control.pid() function
 
-            yield motor_control.state  # Yield control to the scheduler
+                # -------------------------------------------Unpacking Share values-------------------------------------------------------- #
+                centroid_error: float = centroid_share.get()
+                target_heading: float = target_heading_share.get()
+                motor_control.state = motor_control_state_share.get()
+                # -------------------------------------------\Unpacking Share values-------------------------------------------------------- #
+
+                # --------------- S1: Follow the Line Sensor (Default) ----------------- #
+                if motor_control.state == MotorControl.S1_LINE_PID_CALC:
+                    motor_control.controler = line_pid_controler
+                    motor_control.pid(centroid_error)
+                    if DEBUG:
+                        print(
+                            " | ".join(
+                                [
+                                    f"Error: ({centroid_error})",
+                                    f"Left Motor: {HAL.__MOTOR_LEFT__.PWM.pulse_width_percent() * (-1 if HAL.__MOTOR_LEFT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
+                                    f"Right Motor: {HAL.__MOTOR_RIGHT__.PWM.pulse_width_percent() * (-1 if HAL.__MOTOR_RIGHT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
+                                ]
+                            )
+                        )
+                # --------------- \S1: Follow the Line Sensor (Default) ----------------- #
+
+                # ------------------------- S2: Follow A Heading ------------------------- #
+                if motor_control.state == MotorControl.S2_HEADING_PID_CALC:
+                    motor_control.controler = heading_pid_controler
+                    error1: int = (target_heading - heading_share.get()) % 5670
+                    error2: int = error1 - 5670 if error1 > 0 else error1 + 5670
+                    error = (
+                        error1 / 16
+                        if min(abs(error1), abs(error2)) == abs(error1)
+                        else error2 / 16
+                    )
+                    motor_control.pid(error)
+                    if DEBUG:
+                        print(
+                            " | ".join(
+                                [
+                                    f"Error: ({error1/16}, {error2/16})",
+                                    f"Target: {target_heading}",
+                                    f"Heading: {heading_share.get()}",
+                                    f"Left Motor: {HAL.__MOTOR_LEFT__.PWM.pulse_width_percent() * (-1 if HAL.__MOTOR_LEFT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
+                                    f"Right Motor: {HAL.__MOTOR_RIGHT__.PWM.pulse_width_percent() * (-1 if HAL.__MOTOR_RIGHT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
+                                ]
+                            )
+                        )
+                # ------------------------- \S2: Follow A Heading ------------------------- #
+
+                # Default Action: Yeild unimplimented State
+            yield motor_control.state
