@@ -2,9 +2,10 @@ import HAL
 import task_share
 from prelude import *
 import pyb
-import array
-import utime
-import math
+
+# import array
+# import utime
+# import math
 
 
 class LineSensor:
@@ -16,9 +17,14 @@ class LineSensor:
         10  # Number of samples per channel (is this too many or too little?)
     )
 
-    def __init__(self):
+    def __init__(self, debug=False, ignore_button=False):
         # Initialize the line sensor object
-
+        self.debug = debug
+        self.ignore_button = ignore_button
+        if ignore_button:
+            print("Profiling Line Sensor")
+        if debug:
+            print("Debug on for Line Sensor")
         self.sensors = (
             HAL.__LINE_SENSOR__.CHANNELS
         )  # Ensure CHANNELS is a list of sensor objects
@@ -112,44 +118,36 @@ class LineSensor:
             self.calibrate_step()
         print(self.calibration_data)
 
-    def calculate_centroid(self) -> tuple[float, float]:
+    def calculate_centroid(self) -> float:
         # Calculate the centroid based on sensor readings and calibration data
-        values = [
-            clamp(
-                self.read_sampled(sensor),
-                self.calibration_data[i][1],
-                self.calibration_data[i][0],
-            )
-            for (i, sensor) in enumerate(self.sensors)
-        ]
-        centroid = sum([value * (i - 6) for (i, value) in enumerate(values)])
-        average = sum(values) / len(values)
-        stdev = math.sqrt(sum([(val - average) ** 2 for val in values]) / len(values))
-        if DEBUG:
-            print(
-                " | ".join(
-                    [
-                        f"Centroid Error: {centroid}",
-                        f"Average: {average}",
-                        f"Standard Deviation: {stdev}",
-                    ]
+        centroid = sum(
+            [
+                (
+                    (
+                        (
+                            clamp(
+                                self.read_sampled(sensor),
+                                self.calibration_data[i][1],
+                                self.calibration_data[i][0],
+                            )
+                            - self.calibration_data[i][1]
+                        )
+                        / (self.calibration_data[i][0] - self.calibration_data[i][1])
+                    )
+                    * (i - 6)
                 )
-            )
-        return (centroid, stdev)
+                for (i, sensor) in enumerate(self.sensors)
+            ]
+        )
+        return centroid
 
     def task(self, shares):
         # Task to continuously update the centroid value
         control_flag: task_share.Share
         centroid_share: task_share.Share
-        centroid_stdev_share: task_share.Share
-        (control_flag, centroid_share, centroid_stdev_share) = shares  # Shared variable
+        (control_flag, centroid_share) = shares  # Shared variable
         while True:
-            if control_flag.get() == 0:
-                yield self.state
-            else:
-                # print(f"LineSensor")
-                centroid, stdev = self.calculate_centroid()  # Update the centroid
-                centroid_share.put(centroid)
-                centroid_stdev_share.put(stdev)
-                # print(f"Centroid: {centroid_share.get()}")
-                yield self.state
+            # print(f"LineSensor")
+            centroid_share.put(self.calculate_centroid())
+            # print(f"Centroid: {centroid_share.get()}")
+            yield self.state

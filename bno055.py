@@ -25,12 +25,14 @@ class BNO055:
     S2_VELCOITY = 2
     S3_HOLDING = 3
 
-    def __init__(self):
+    def __init__(self, debug=False, profiler=False):
         # Initialize I2C
+        self.profiler = profiler
         self.i2c = HAL.__IMU__.I2C  # Use the pre-configured I2C instance
         self.state = self.S1_ANGLES
         self.initialize_imu()
         self.calibrate_if_needed()
+        self.debug = debug
 
     def initialize_imu(self):
         # Initialize the BNO055 in NDOF mode
@@ -132,50 +134,18 @@ class BNO055:
         # self.set_mode(self.MODE_NDOF)
 
     def task(self, shares):
-        control_flag: Share
+        import gc
+
         heading_share: Share
-        pitch_share: Share
-        roll_share: Share
-        gyro_x_share: Share
-        gyro_y_share: Share
-        gyro_z_share: Share
-        (
-            control_flag,
-            heading_share,
-            pitch_share,
-            roll_share,
-            gyro_x_share,
-            gyro_y_share,
-            gyro_z_share,
-        ) = shares
+        target_heading: Share
+        (heading_share, target_heading) = shares
         imu = self
         while True:
-            if control_flag.get() == 0:
-                yield imu.state
-            else:
-                # print("IMU")
-                if imu.state == imu.S0_CALIBRATION:
-                    imu.calibrate_if_needed()
-                    imu.state = imu.S1_ANGLES
-                    yield imu.state
-                elif imu.state == imu.S1_ANGLES:
-                    angles = imu.get_euler_angles()
-                    heading_share.put(angles[0])
-                    pitch_share.put(angles[1])
-                    roll_share.put(angles[2])
-
-                    # print(f'Target Heading: {target_heading.get()} | Measured Heading: {heading_share.get()} | error1: {error1} | error2: {error2} | error: {error}')
-                    imu.state = imu.S2_VELCOITY
-                    yield imu.state
-                elif imu.state == imu.S2_VELCOITY:
-                    velocities = imu.get_angular_velocity()
-                    gyro_x_share.put(velocities[0])
-                    gyro_y_share.put(velocities[1])
-                    gyro_z_share.put(velocities[2])
-                    imu.state = imu.S1_ANGLES
-                    yield imu.state
-                else:
-                    print(f"Unknown state Reached: {imu}")
-                    imu.state = imu.S1_ANGLES
-                    yield imu.state
-                yield imu.state
+            gc.collect()
+            angles = imu.get_euler_angles()
+            if self.debug:
+                print(
+                    f"Target Heading: {target_heading.get()} | Measured Heading: {heading_share.get()}"
+                )
+            heading_share.put(angles[0])
+            yield imu.state

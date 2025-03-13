@@ -1,13 +1,13 @@
 ## @file task_share.py
 #  This file contains classes which allow tasks to share data without the risk
-#  of data corruption by interrupts. 
+#  of data corruption by interrupts.
 #
 #  @author JR Ridgely
 #  @date   2017-Jan-01 JRR Approximate date of creation of file
 #  @date   2021-Dec-18 JRR Docstrings changed to work without DoxyPyPy
 #  @copyright This program is copyright (c) 2017-2023 by JR Ridgely and released
-#             under the GNU Public License, version 3.0. 
-# 
+#             under the GNU Public License, version 3.0.
+#
 #  It is intended for educational use only, but its use is not limited thereto.
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 #  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,42 +28,50 @@ import micropython
 
 
 ## This is a system-wide list of all the queues and shared variables. It is
-#  used to create diagnostic printouts. 
+#  used to create diagnostic printouts.
 share_list = []
 
 ## This dictionary allows readable printouts of queue and share data types.
-type_code_strings = {'b' : "int8",   'B' : "uint8",
-                     'h' : "int16",  'H' : "uint16",
-                     'i' : "int(?)", 'I' : "uint(?)",
-                     'l' : "int32",  'L' : "uint32",
-                     'q' : "int64",  'Q' : "uint64",
-                     'f' : "float",  'd' : "double"}
+type_code_strings = {
+    "b": "int8",
+    "B": "uint8",
+    "h": "int16",
+    "H": "uint16",
+    "i": "int(?)",
+    "I": "uint(?)",
+    "l": "int32",
+    "L": "uint32",
+    "q": "int64",
+    "Q": "uint64",
+    "f": "float",
+    "d": "double",
+}
 
 
 ## Create a string holding a diagnostic printout showing the status of
-#  each queue and share in the system. 
+#  each queue and share in the system.
 #  @return A string containing information about each queue and share
-def show_all ():
-    gen = (str (item) for item in share_list)
-    return '\n'.join (gen)
+def show_all():
+    gen = (str(item) for item in share_list)
+    return "\n".join(gen)
 
 
 ## Base class for queues and shares which exchange data between tasks.
-# 
+#
 #  One should never create an object from this class; it doesn't do anything
 #  useful. It exists to implement things which are common between its child
-#  classes @c Queue and @c Share. 
+#  classes @c Queue and @c Share.
 class BaseShare:
 
     ## Create a base queue object when called by a child class initializer.
     #
     #  This method creates the things which queues and shares have in common.
-    def __init__ (self, type_code, thread_protect = True, name = None):
+    def __init__(self, type_code, thread_protect=True, name=None):
         self._type_code = type_code
         self._thread_protect = thread_protect
 
         # Add this queue to the global share and queue list
-        share_list.append (self)
+        share_list.append(self)
 
 
 ## A queue which is used to transfer data from one task to another.
@@ -87,18 +95,18 @@ class BaseShare:
 #  # In another task, read data from the queue
 #  something = my_queue.get ()
 #  @endcode
-class Queue (BaseShare):
+class Queue(BaseShare):
 
     ## A counter used to give serial numbers to queues for diagnostic use.
     ser_num = 0
 
     ## Initialize a queue object to carry and buffer data between tasks.
     #
-    #  This method sets up a queue by allocating memory for the contents and 
-    #  setting up the components in an empty configuration. 
+    #  This method sets up a queue by allocating memory for the contents and
+    #  setting up the components in an empty configuration.
     #
     #  Each queue can only carry data of one particular type which must be
-    #  chosen from the following list. The data type is specified by a 
+    #  chosen from the following list. The data type is specified by a
     #  one-letter type code which is given as for the Python @c array.array
     #  type, which can be any of the following:
     #  |      |      |      |
@@ -114,23 +122,23 @@ class Queue (BaseShare):
     #  @param size The maximum number of items which the queue can hold
     #  @param thread_protect @c True if mutual exclusion protection is used
     #  @param overwrite If @c True, oldest data will be overwritten with new
-    #         data if the queue becomes full 
+    #         data if the queue becomes full
     #  @param name A short name for the queue, default @c QueueN where @c N
     #         is a serial number for the queue
-    def __init__ (self, type_code, size, thread_protect = False, 
-                  overwrite = False, name = None):
+    def __init__(
+        self, type_code, size, thread_protect=False, overwrite=False, name=None
+    ):
         # First call the parent class initializer
-        super ().__init__ (type_code, thread_protect, name)
+        super().__init__(type_code, thread_protect, name)
 
         self._size = size
         self._overwrite = overwrite
-        self._name = str (name) if name != None \
-            else 'Queue' + str (Queue.ser_num)
+        self._name = str(name) if name != None else "Queue" + str(Queue.ser_num)
         Queue.ser_num += 1
 
         # Allocate memory in which the queue's data will be stored
         try:
-            self._buffer = array.array (type_code, range (size))
+            self._buffer = array.array(type_code, range(size))
         except MemoryError:
             self._buffer = None
             raise
@@ -139,15 +147,14 @@ class Queue (BaseShare):
             raise
 
         # Initialize pointers to be used for reading and writing data
-        self.clear ()
+        self.clear()
 
         # Since we may have allocated a bunch of memory, call the garbage
         # collector to neaten up what memory is left for future use
-        gc.collect ()
-
+        gc.collect()
 
     ## Put an item into the queue.
-    # 
+    #
     #  If there isn't room for the item, wait (blocking the calling process)
     #  until room becomes available, unless the @c overwrite constructor
     #  parameter was set to @c True to allow old data to be clobbered. If
@@ -165,21 +172,21 @@ class Queue (BaseShare):
     #  @param item The item to be placed into the queue
     #  @param in_ISR Set this to @c True if calling from within an ISR
     @micropython.native
-    def put (self, item, in_ISR = False):
+    def put(self, item, in_ISR=False):
         # If we're in an ISR and the queue is full and we're not allowed to
         # overwrite data, we have to give up and exit
-        if self.full ():
+        if self.full():
             if in_ISR:
                 return
 
             # Wait (if needed) until there's room in the buffer for the data
             if not self._overwrite:
-                while self.full ():
+                while self.full():
                     pass
 
         # Prevent data corruption by blocking interrupts during data transfer
         if self._thread_protect and not in_ISR:
-            _irq_state = pyb.disable_irq ()
+            _irq_state = pyb.disable_irq()
 
         # Write the data and advance the counts and pointers
         self._buffer[self._wr_idx] = item
@@ -187,18 +194,17 @@ class Queue (BaseShare):
         if self._wr_idx >= self._size:
             self._wr_idx = 0
         self._num_items += 1
-        if self._num_items >= self._size:        # Can't be fuller than full
+        if self._num_items >= self._size:  # Can't be fuller than full
             self._num_items = self._size
-        if self._num_items > self._max_full:     # Record maximum fillage
+        if self._num_items > self._max_full:  # Record maximum fillage
             self._max_full = self._num_items
 
         # Re-enable interrupts
         if self._thread_protect and not in_ISR:
-            pyb.enable_irq (_irq_state)
-
+            pyb.enable_irq(_irq_state)
 
     ## Read an item from the queue.
-    # 
+    #
     #  If there isn't anything in there, wait (blocking the calling process)
     #  until something becomes available. If non-blocking reads are needed,
     #  one should call @c any() to check for items before attempting to read
@@ -215,14 +221,14 @@ class Queue (BaseShare):
     #  @endcode
     #  @param in_ISR Set this to @c True if calling from within an ISR
     @micropython.native
-    def get (self, in_ISR = False):
+    def get(self, in_ISR=False):
         # Wait until there's something in the queue to be returned
-        while self.empty ():
+        while self.empty():
             pass
 
         # Prevent data corruption by blocking interrupts during data transfer
         if self._thread_protect and not in_ISR:
-            irq_state = pyb.disable_irq ()
+            irq_state = pyb.disable_irq()
 
         # Get the item to be returned from the queue
         to_return = self._buffer[self._rd_idx]
@@ -237,69 +243,65 @@ class Queue (BaseShare):
 
         # Re-enable interrupts
         if self._thread_protect and not in_ISR:
-            pyb.enable_irq (irq_state)
+            pyb.enable_irq(irq_state)
 
-        return (to_return)
-
+        return to_return
 
     ## Check if there are any items in the queue.
-    # 
+    #
     #  Returns @c True if there are any items in the queue and @c False
     #  if the queue is empty.
     #  @return @c True if items are in the queue, @c False if not
     @micropython.native
-    def any (self):
-        return (self._num_items > 0)
-
+    def any(self):
+        return self._num_items > 0
 
     ## Check if the queue is empty.
-    # 
-    #  Returns @c True if there are no items in the queue and @c False if 
+    #
+    #  Returns @c True if there are no items in the queue and @c False if
     #  there are any items therein.
     #  @return @c True if queue is empty, @c False if it's not empty
     @micropython.native
-    def empty (self):
-        return (self._num_items <= 0)
-
+    def empty(self):
+        return self._num_items <= 0
 
     ## Check if the queue is full.
-    # 
+    #
     #  This method returns @c True if the queue is already full and there
-    #  is no room for more data without overwriting existing data. 
+    #  is no room for more data without overwriting existing data.
     #  @return @c True if the queue is full
     @micropython.native
-    def full (self):
-        return (self._num_items >= self._size)
-
+    def full(self):
+        return self._num_items >= self._size
 
     ## Check how many items are in the queue.
-    # 
-    #  This method returns the number of items which are currently in the 
+    #
+    #  This method returns the number of items which are currently in the
     #  queue.
     #  @return The number of items in the queue
     @micropython.native
-    def num_in (self):
-        return (self._num_items)
-
+    def num_in(self):
+        return self._num_items
 
     ## Remove all contents from the queue.
-    def clear (self):
+    def clear(self):
         self._rd_idx = 0
         self._wr_idx = 0
         self._num_items = 0
         self._max_full = 0
 
-
     ## This method puts diagnostic information about the queue into a string.
-    # 
+    #
     #  It shows the queue's name and type as well as the maximum number of
-    #  items and queue size. 
-    def __repr__ (self):
-        return ('{:<12s} Queue<{:s}> Max Full {:d}/{:d}'.format (self._name,
-                type_code_strings[self._type_code], self._max_full, self._size))
+    #  items and queue size.
+    def __repr__(self):
+        return "{:<12s} Queue<{:s}> Max Full {:d}/{:d}".format(
+            self._name, type_code_strings[self._type_code], self._max_full, self._size
+        )
 
 
 # ============================================================================
+
 
 ## An item which holds data to be shared between tasks.
 #  This class implements a shared data item which can be protected against
@@ -307,32 +309,31 @@ class Queue (BaseShare):
 #  corrupt shared data includes the use of ordinary interrupts as well as the
 #  use of pre-emptive multithreading such as by a Real-Time Operating System
 #  (RTOS).
-# 
+#
 #  An example of the creation and use of a share is as follows:
 #  @code
 #  import task_share
-# 
+#
 #  # This share holds a signed short (16-bit) integer
 #  my_share = task_share.Queue ('h', name="My Share")
-# 
+#
 #  # Somewhere in one task, put data into the share
 #  my_share.put (some_data)
-# 
+#
 #  # In another task, read data from the share
 #  something = my_share.get ()
 #  @endcode
-class Share (BaseShare):
+class Share(BaseShare):
 
     ## A counter used to give serial numbers to shares for diagnostic use.
     ser_num = 0
 
-
     ## Create a shared data item used to transfer data between tasks.
-    # 
+    #
     #  This method allocates memory in which the shared data will be buffered.
-    # 
+    #
     #  Each share can only carry data of one particular type which must be
-    #  chosen from the following list. The data type is specified by a 
+    #  chosen from the following list. The data type is specified by a
     #  one-letter type code which is given as for the Python @c array.array
     #  type, which can be any of the following:
     #  |      |      |      |
@@ -343,24 +344,22 @@ class Share (BaseShare):
     #  | **l** (signed long) | **L** (unsigned long) | 32 bit integers |
     #  | **q** (signed long long) | **Q** (unsigned long long) | 64 bit integers |
     #  | **f** (float) | **d** (double-precision float) | |
-    # 
+    #
     #  @param type_code The type of data items which the share can hold
     #  @param thread_protect True if mutual exclusion protection is used
     #  @param name A short name for the share, default @c ShareN where @c N
     #         is a serial number for the share
-    def __init__ (self, type_code, thread_protect = True, name = None):
+    def __init__(self, type_code, thread_protect=True, name=None):
         # First call the parent class initializer
-        super ().__init__ (type_code, thread_protect, name)
+        super().__init__(type_code, thread_protect, name)
 
-        self._buffer = array.array (type_code, [0])
+        self._buffer = array.array(type_code, [0])
 
-        self._name = str (name) if name != None \
-            else 'Share' + str (Share.ser_num)
+        self._name = str(name) if name != None else "Share" + str(Share.ser_num)
         Share.ser_num += 1
 
-
     ## Write an item of data into the share.
-    # 
+    #
     #  This method puts data into the share; any old data is overwritten.
     #  This code disables interrupts during the writing so as to prevent
     #  data corrupting by an interrupt service routine which might access
@@ -368,45 +367,42 @@ class Share (BaseShare):
     #  @param data The data to be put into this share
     #  @param in_ISR Set this to True if calling from within an ISR
     @micropython.native
-    def put (self, data, in_ISR = False):
+    def put(self, data, in_ISR=False):
 
         # Disable interrupts before writing the data
         if self._thread_protect and not in_ISR:
-            irq_state = pyb.disable_irq ()
+            irq_state = pyb.disable_irq()
 
         self._buffer[0] = data
 
         # Re-enable interrupts
         if self._thread_protect and not in_ISR:
-            pyb.enable_irq (irq_state)
-
+            pyb.enable_irq(irq_state)
 
     ## Read an item of data from the share.
-    # 
+    #
     #  If thread protection is enabled, interrupts are disabled during the time
     #  that the data is being read so as to prevent data corruption by changes
-    #  in the data as it is being read. 
+    #  in the data as it is being read.
     #  @param in_ISR Set this to True if calling from within an ISR
     @micropython.native
-    def get (self, in_ISR = False):
+    def get(self, in_ISR=False):
         # Disable interrupts before reading the data
         if self._thread_protect and not in_ISR:
-            irq_state = pyb.disable_irq ()
+            irq_state = pyb.disable_irq()
 
         to_return = self._buffer[0]
 
         # Re-enable interrupts
         if self._thread_protect and not in_ISR:
-            pyb.enable_irq (irq_state)
+            pyb.enable_irq(irq_state)
 
-        return (to_return)
-
+        return to_return
 
     ## Puts diagnostic information about the share into a string.
     #
-    #  Shares are pretty simple, so we just put the name and type. 
-    def __repr__ (self):
-        return ("{:<12s} Share<{:s}>".format (self._name,
-                type_code_strings[self._type_code]))
-
-
+    #  Shares are pretty simple, so we just put the name and type.
+    def __repr__(self):
+        return "{:<12s} Share<{:s}>".format(
+            self._name, type_code_strings[self._type_code]
+        )

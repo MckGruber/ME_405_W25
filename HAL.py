@@ -186,7 +186,7 @@ class __LINE_SENSOR__:
 _PC8 = Pin(Pin.cpu.C8, mode=Pin.IN, pull=Pin.PULL_UP)  # Left Inside
 _PB4 = Pin(Pin.cpu.B4, mode=Pin.IN, pull=Pin.PULL_UP)  # Left Middle
 _PB5 = Pin(Pin.cpu.B5, mode=Pin.IN, pull=Pin.PULL_UP)  # Left Outside
-_PB13 = Pin(Pin.cpu.B13, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Outside
+_PB12 = Pin(Pin.cpu.B12, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Outside
 _PB14 = Pin(Pin.cpu.B14, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Middle
 _PB15 = Pin(Pin.cpu.B15, mode=Pin.IN, pull=Pin.PULL_UP)  # Right Inside
 
@@ -200,7 +200,7 @@ class __BUMP_SENSOR_LEFT__:
 class __BUMP_SENSOR_RIGHT__:
     INSIDE = _PB15
     MIDDLE = _PB14
-    OUTSIDE = _PB13
+    OUTSIDE = _PB12
 
 
 class __BUMP_SENSOR__:

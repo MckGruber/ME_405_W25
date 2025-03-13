@@ -6,7 +6,8 @@ from encoder import Encoder
 
 
 class Motor:
-    def __init__(self, side: int) -> None:
+    def __init__(self, side: int, debug=False) -> None:
+        self.debug = debug
         self._side: int = side
         self.GAIN_INV = 7.2 / 3.11
         self.__hal__ = (
@@ -19,7 +20,11 @@ class Motor:
             else MotorDirection.REV
         )
         self.is_on = bool(self.__hal__.ENABLE.value())
-        self.controller: ClosedLoop = ClosedLoop(kp=0.8, ki=-0.05, kd=0.005)
+        self.controller: ClosedLoop = ClosedLoop(
+            kp=0.8,
+            ki=-0.1,
+            kd=0.005,
+        )
         self.set_point = SPEED_SET_POINT
         self.encoder = Encoder(side)
 
@@ -32,7 +37,11 @@ class Motor:
             self.__hal__.PWM.pulse_width_percent()
             return self.__hal__.PWM.pulse_width_percent()
         self.set_dir(MotorDirection.FWD if value > 0 else MotorDirection.REV)
-        self.__hal__.PWM.pulse_width_percent(abs(value))
+        self.__hal__.PWM.pulse_width_percent(
+            abs(value)
+            # if value > 10
+            # else abs(value) + 5
+        )
 
         return value
 
@@ -61,7 +70,7 @@ class Motor:
             position_share,
         ) = shares
         while True:
-            # if DEBUG:
+            # if self.debug:
             #     print(
             #         f"{"Left" if self._side == Vehicle_Side.LEFT else "Right"} Motor Task"
             #     )
@@ -73,9 +82,9 @@ class Motor:
             # -------------- <On-Off Button> -------------- #
             if control_flag.get() == 0:
                 if self.is_on:
-                    print(
-                        f'Motor {"Left" if self._side == Vehicle_Side.LEFT else "Right"} Off'
-                    )
+                    # print(
+                    #     f'Motor {"Left" if self._side == Vehicle_Side.LEFT else "Right"} Off'
+                    # )
                     self.disable()
             else:
                 if not self.is_on:
@@ -85,38 +94,39 @@ class Motor:
                 # -------------- <Velocity Calcs> -------------- #
 
                 velocity_set_point = (
-                    yaw_effort_percent_share.get()
+                    yaw_effort_percent_share.get() * get_voltage() / self.GAIN_INV
                     if self._side == Vehicle_Side.LEFT
-                    else -yaw_effort_percent_share.get()
-                ) * (
-                    get_voltage() / self.GAIN_INV  # Velocity from Efort %
+                    else -yaw_effort_percent_share.get() * get_voltage() / self.GAIN_INV
                 ) + SPEED_SET_POINT  # Speed Set Point
 
                 # -------------- <Motor Control> --------------- #
 
-                error = velocity_set_point - self.encoder.velocity()
-                adjustment = (
-                    self.controller.update(error)
-                    # if self._side == Vehicle_Side.RIGHT
-                    # else self.controller.update(error)
-                )
+                # error = (velocity_set_point) - self.encoder.velocity()
+                # adjustment = (
+                #     self.controller.update(
+                #         (velocity_set_point) - self.encoder.velocity()
+                #     )
+                #     # if self._side == Vehicle_Side.RIGHT
+                #     # else self.controller.update(error)
+                # )
                 self.effort(
-                    ((self.GAIN_INV / get_voltage()) * velocity_set_point) + adjustment
+                    ((self.GAIN_INV / get_voltage()) * velocity_set_point)
+                    + self.controller.update(
+                        (velocity_set_point) - self.encoder.velocity()
+                    )
                 )
-                # if self._side == Vehicle_Side.LEFT:
-                #     if DEBUG:
-                #         print(
-                #             f"{"Left" if self._side == Vehicle_Side.LEFT else "Right"} Motor=> "
-                #             + " | ".join(
-                #                 [
-                #                     f"Gain Value: {((self.GAIN_INV / get_voltage()) * velocity_set_point)}",
-                #                     # f"Velocity: {self.encoder.velocity() * (-1 if HAL.__MOTOR_LEFT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
-                #                     f"Error: {error}",
-                #                     f"PID Adjustment: {adjustment}",
-                #                     f" PWM Percent: {self.effort()}",
-                #                 ]
-                #             ),
-                #             end=" ",
-                #         )
+                if self.controller.debug or self.debug:
+                    print(
+                        f"{"Left" if self._side == Vehicle_Side.LEFT else "Right"} Motor=> "
+                        + " | ".join(
+                            [
+                                f"Gain Value: {((self.GAIN_INV / get_voltage()) * velocity_set_point)}",
+                                f"Velocity: {self.encoder.velocity() * (-1 if HAL.__MOTOR_LEFT__.DIRECTION.value() != MotorDirection.FWD else 1)}",
+                                f"Error: {(velocity_set_point) - self.encoder.velocity()}",
+                                f"PID Adjustment: {self.controller.update((velocity_set_point) - self.encoder.velocity())}",
+                                f" PWM Percent: {self.effort()}",
+                            ]
+                        )
+                    )
             yield
             # -------------- </Motor Control> --------------- #
