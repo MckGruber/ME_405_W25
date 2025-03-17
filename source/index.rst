@@ -12,7 +12,7 @@ This documentation covers the hardware, software, and testing results.
 
 To view the complete source code, please visit the GitHub repository:
 
-https://github.com/Jdbalder1108/ME405TermProject-Romi
+https://github.com/MckGruber/ME_405_W25
 
 .. note::
    This project is for the ME405 course and is an implementation of a line-following Romi robot.
