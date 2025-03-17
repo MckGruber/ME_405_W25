@@ -60,13 +60,13 @@ class NB_Input:
     saw from the microcontroller in response to user input isn't what Thonny
     expected to see. These warnings may be ignored. 
     """
-    _ser_dev: stream   # Serial device from which input comes
+    _ser_dev: stream   # type: ignore # Serial device from which input comes
     _echo: bool        # Whether to echo characters back to the user
     _line: str         # The line currently being received
     _list: list        # A list of previously received lines of input
 
 
-    def __init__ (self, serial_device: stream, echo=True):
+    def __init__ (self, serial_device: stream, echo=True): # type: ignore
         """!
         Create a non-blocking input object. There should be at most one of
         these for each serial port.

@@ -1,15 +1,15 @@
 def run(fun, *args):
-    import cotask, tasks
+    import cotask, tasks, gc
 
     try:
         if tasks.task_builder.is_built:
-            import gc
 
             print("Reseting Task List")
             tasks.task_builder = tasks.TaskBuilder()
             tasks.task_builder.shares = tasks.Shares()
             cotask.task_list = cotask.TaskList()
             gc.collect()
+        gc.collect()
         print("in run")
         fun(args)
         tasks.task_builder.run()
@@ -29,6 +29,10 @@ def main(in_run=False):
         return
     ## ------------------------ <Tasks> ------------------------ ##
     tasks.task_builder.vehicle_conrol().motors().course(debug=True)
+    print("Tasks Added")
+    if not tasks.task_builder.shares.is_built:
+        tasks.task_builder.shares.build()
+    print("Sleeping")
     utime.sleep(0.5)
     tasks.task_builder.shares.control_flag.put(1)
     ## ------------------------ </Tasks> ------------------------ ##

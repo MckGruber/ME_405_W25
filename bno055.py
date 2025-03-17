@@ -2,6 +2,7 @@ import pyb
 import struct
 import HAL
 from task_share import Share
+import gc
 
 
 class BNO055:
@@ -15,9 +16,21 @@ class BNO055:
     REG_GYRO_DATA = 0x14  # Gyroscope Data Register
     REG_CALIBRATION_DATA = 0x55  # Starting register for calibration coefficients
 
-    # BNO055 Modes (Fusion Mode Examples)
-    MODE_CONFIG = 0x00  # Configuration mode
-    MODE_NDOF = 0x0C  # Full sensor fusion mode
+    # BNO055 Modes 
+    MODE_CONFIG = 0x00          # Configuration mode
+    MODE_ACCONLY = 0x01         # Accelerometer only mode
+    MODE_MAGONLY = 0x02         # Magnetometer only mode
+    MODE_GYRONLY = 0x03         # Gyroscope only mode
+    MODE_ACCMAG = 0x04          # Accelerometer and Magnetometer mode
+    MODE_ACCGYRO = 0x05         # Accelerometer and Gyroscope mode
+    MODE_MAGGYRO = 0x06         # Magnetometer and Gyroscope mode
+    MODE_AMG = 0x07             # Accelerometer, Magnetometer, and Gyroscope mode
+    MODE_IMUPLUS = 0x08         # IMU mode with additional features
+    MODE_COMPASS = 0x09         # Compass mode
+    MODE_M4G = 0x0A             # 4th Generation mode
+    MODE_NDOF_FMC_OFF = 0x0B    # Fusion mode with no sensor fusion
+    MODE_NDOF = 0x0C            # Full sensor fusion mode
+
 
     # Task State Variables
     S0_CALIBRATION = 0
@@ -27,12 +40,15 @@ class BNO055:
 
     def __init__(self, debug=False, profiler=False):
         # Initialize I2C
+        print("Initilizing IMU")
         self.profiler = profiler
         self.i2c = HAL.__IMU__.I2C  # Use the pre-configured I2C instance
         self.state = self.S1_ANGLES
         self.initialize_imu()
         self.calibrate_if_needed()
         self.debug = debug
+        print("\\Initilizing IMU")
+        gc.collect()
 
     def initialize_imu(self):
         # Initialize the BNO055 in NDOF mode

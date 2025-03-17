@@ -3,10 +3,13 @@ import HAL
 from closed_loop import ClosedLoop
 from task_share import Share, Queue
 from encoder import Encoder
+import gc
 
 
 class Motor:
     def __init__(self, side: int, debug=False) -> None:
+        side_name = "Left" if self._side == Vehicle_Side.LEFT else "Right"
+        print(f"Initializing Motor {side_name}")
         self.debug = debug
         self._side: int = side
         self.GAIN_INV = 7.2 / 3.11
@@ -27,6 +30,9 @@ class Motor:
         )
         self.set_point = SPEED_SET_POINT
         self.encoder = Encoder(side)
+        gc.collect()
+        side_name = "Left" if self._side == Vehicle_Side.LEFT else "Right"
+        print(f"Initializing Motor {side_name}")
 
     def set_dir(self, dir: int):
         self.direction = dir
@@ -116,8 +122,9 @@ class Motor:
                     )
                 )
                 if self.controller.debug or self.debug:
+                    side_name = "Left" if self._side == Vehicle_Side.LEFT else "Right"
                     print(
-                        f"{"Left" if self._side == Vehicle_Side.LEFT else "Right"} Motor=> "
+                        f"{side_name} Motor=> "
                         + " | ".join(
                             [
                                 f"Gain Value: {((self.GAIN_INV / get_voltage()) * velocity_set_point)}",

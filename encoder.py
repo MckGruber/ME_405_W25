@@ -2,6 +2,7 @@ from prelude import *
 from HAL import HAL
 from math import pi
 import utime
+import gc
 
 # TODO Update encoder to have a hardware time update callback
 
@@ -12,6 +13,8 @@ def to_radians(ticks: int) -> float:
 
 class Encoder:
     def __init__(self, side: int):
+        side_text = "Left" if side == Vehicle_Side.LEFT else "Right"
+        print(f"Initializing Encoder {side_text}")
         self._side: int = side
         self.__hal__ = (
             HAL.ENCODER.LEFT if self._side == Vehicle_Side.LEFT else HAL.ENCODER.RIGHT
@@ -22,6 +25,8 @@ class Encoder:
         self.last_update_time = utime.ticks_us()
         self.__check_value__ = (self.__hal__.TIM.period() + 1) / 2
         self.__velocity__ = 0
+        gc.collect()
+        print(f"Initializing Encoder {side_text}")
 
     def update(self) -> None:
         now = utime.ticks_us()

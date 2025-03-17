@@ -58,7 +58,7 @@ PT_BUF_SIZE = const (1000)
 #  task is called so that the run method will be called as soon as the print 
 #  task is run by the task scheduler. 
 #  @param a_string A string to be put into the queue
-@micropython.native
+@micropython.native # type: ignore
 def put (a_string):
     for a_ch in a_string:
         print_task.go ()
@@ -72,7 +72,7 @@ def put (a_string):
 #  task is called so that the run method will be called as soon as the print 
 #  task is run by the task scheduler. 
 #  @param b_arr The bytearray whose contents go into the queue
-@micropython.native
+@micropython.native # type: ignore
 def put_bytes (b_arr):
 
     for byte in b_arr:

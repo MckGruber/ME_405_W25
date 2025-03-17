@@ -276,10 +276,15 @@ class TaskBuilder:
     def run(self):
         import cotask, gc
 
+        print(gc.mem_free())
+        gc.collect()
+        print(gc.mem_free())
+
         if not self.is_built:
             self.build()
         gc.collect()
         if self.course_task in self.task_list and self.course_task != None:
+            print("Running Main")
             while True:
                 cotask.task_list.pri_sched()
         else:

@@ -4,6 +4,7 @@ from closed_loop import ClosedLoop
 import HAL
 from line_sensor import LineSensor
 from bno055 import BNO055
+import gc
 
 
 class MotorControl:
@@ -13,12 +14,15 @@ class MotorControl:
 
     # FSM states
     def __init__(self, debug=False) -> None:
+        print("Init Vehicle Control")
         self.yaw_effort_percent_share: Share | None = None
-        self.controler: ClosedLoop | None
+        self.controler: ClosedLoop | None = None
         self.state = MotorControl.S0_STOP  # Initial FSM state
         self.debug = debug
         self.line_sensor = LineSensor()
         self.imu = BNO055()
+        # gc.collect()
+        print("\\Init Vehicle Control")
 
     def pid(
         self,

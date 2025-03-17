@@ -2,6 +2,7 @@ import HAL
 import task_share
 from prelude import *
 import pyb
+import gc
 
 # import array
 # import utime
@@ -18,6 +19,7 @@ class LineSensor:
     )
 
     def __init__(self, debug=False, ignore_button=False):
+        print("Init LineSensor")
         # Initialize the line sensor object
         self.debug = debug
         self.ignore_button = ignore_button
@@ -48,6 +50,8 @@ class LineSensor:
             self.calibrate_step()
         else:
             self.load_calibration()
+        # gc.collect()
+        print("\\Init LineSensor")
 
     def read_sampled(self, sensor: pyb.ADC):
         # Read and average ADC values from the sensor
