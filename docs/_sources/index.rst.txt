@@ -3,22 +3,31 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-ME405 Romi Robot Term Project documentation
-===========================================
+=========================================
+Romi Line-Following Robot Documentation
+=========================================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+**Welcome to the documentation for the Romi Line-Following Robot!**  
+This documentation covers the hardware, software, and testing results.
 
+To view the complete source code, please visit the GitHub repository:
+
+https://github.com/Jdbalder1108/ME405TermProject-Romi
+
+.. note::
+   This project is for the ME405 course and is an implementation of a line-following Romi robot.
 
 .. toctree::
    :maxdepth: 2
+   
    :caption: Contents:
-
+   
    introduction
    hardware
    software
    results
-   modules
+   api/modules
+
+
 
 
