@@ -1,7 +1,0 @@
-board\_info module
-==================
-
-.. automodule:: board_info
-   :members:
-   :show-inheritance:
-   :undoc-members:

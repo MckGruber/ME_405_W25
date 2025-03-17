@@ -1,7 +1,0 @@
-motor module
-============
-
-.. automodule:: motor
-   :members:
-   :show-inheritance:
-   :undoc-members:

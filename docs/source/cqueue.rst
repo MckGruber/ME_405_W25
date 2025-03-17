@@ -1,7 +1,0 @@
-cqueue module
-=============
-
-.. automodule:: cqueue
-   :members:
-   :show-inheritance:
-   :undoc-members:

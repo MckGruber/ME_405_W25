@@ -1,7 +1,0 @@
-collector module
-================
-
-.. automodule:: collector
-   :members:
-   :show-inheritance:
-   :undoc-members:

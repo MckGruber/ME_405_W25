@@ -1,7 +1,0 @@
-bump\_sensors module
-====================
-
-.. automodule:: bump_sensors
-   :members:
-   :show-inheritance:
-   :undoc-members:
